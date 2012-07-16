@@ -7,10 +7,11 @@
 #include <vector>
 #include <numeric>
 #include <armadillo>
+#include <o2scl/poly.h>
 
 dielectric::dielectric ( StixVars s )
 {
-		I = (0,1);
+		I = std::complex<double>(0.0,1.0);
 		stix.zeros(3,3);
 
 		stix(0,0) = s.S;
@@ -25,6 +26,7 @@ dielectric::dielectric ( StixVars s )
 		stix(2,1) = 0 ;
 		stix(2,2) = s.P;
 
+		stix.print();
 }
 
 void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )
@@ -81,3 +83,81 @@ void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )
 		stixRotated.print();
 
 }
+
+void dielectric::coldRoots( double w, double kp, double kz)
+{
+
+		// see rsfxc_1D.nb for the derivation of these polynomial coeffs.
+
+		std::complex<double> k4 = pow(w,2)/pow(_c,2) * stixRotated(0,0);
+
+		std::complex<double> k3 = pow(w,2)/pow(_c,2) 
+				* ( kp * ( stixRotated(0,1) + stixRotated(1,0) ) 
+						+ kz * ( stixRotated(0,2) + stixRotated(2,0) ) );
+
+		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kp,2) * ( stixRotated(0,0) + stixRotated(1,1) ) 
+						+ pow(_c,2) * kz * kp * ( stixRotated(1,2) + stixRotated(2,1) ) 
+						+ pow(_c,2) * pow(kz,2) * ( stixRotated(0,0) + stixRotated(2,2) ) 
+						+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,0) 
+										+ stixRotated(0,2) * stixRotated(2,0)
+										- stixRotated(0,0) * ( stixRotated(1,1) + stixRotated(2,2) ) ) );
+
+		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kz,2) * kp * ( stixRotated(0,1) + stixRotated(1,0) )
+						+ pow(_c,2) * pow(kz,3) * ( stixRotated(0,2) + stixRotated(2,0) )
+						+ kz * ( pow(_c,2) * pow(kp,2) * ( stixRotated(0,2) + stixRotated(2,0) )
+							+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,2) 
+										- stixRotated(1,1) * ( stixRotated(0,2) + stixRotated(2,0) )
+										+ stixRotated(1,0) * stixRotated(2,1) ) ) 
+						+ kp * ( pow(w,2) * ( stixRotated(1,2) * stixRotated(2,0)
+												+ stixRotated(0,2) * stixRotated(2,1) )
+									+ ( stixRotated(0,1) + stixRotated(1,0) ) 
+										* ( pow(_c,2) * pow(kp,2) - pow(w,2) * stixRotated(2,2) ) ) );
+		
+		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow(kp,4) * stixRotated(1,1) 
+							+ pow(_c,4) * kz * pow(kp,3) * ( stixRotated(1,2) + stixRotated(2,1) ) 
+							+ pow(_c,2) * kz * kp 
+                                * ( pow(_c,2) * pow(kz,2) * ( stixRotated(1,2) + stixRotated(2,1) ) 
+									+ pow(w,2) * ( stixRotated(0,2) * stixRotated(1,0) 
+													+ stixRotated(0,1) * stixRotated(2,0) 
+													- stixRotated(0,0) * 
+														( stixRotated(1,2) + stixRotated(2,1) ) ) ) 
+							+ pow(_c,4) * pow(kz,4) * stixRotated(2,2) 
+							+ pow(_c,2) * pow(w,2) * pow(kz,2) 
+								* ( stixRotated(0,2) * stixRotated(2,0) 
+									+ stixRotated(1,2) * stixRotated(2,1) 
+									- ( stixRotated(0,0) + stixRotated(1,1) ) * stixRotated(2,2) ) 
+							+pow(w,4) * ( stixRotated(0,2) * ( -stixRotated(1,1) * stixRotated(2,0) 
+															+ stixRotated(1,0) * stixRotated(2,1) ) 
+								+ stixRotated(0,1) * ( stixRotated(1,2) * stixRotated(2,0) 
+													- stixRotated(1,0) * stixRotated(2,2) ) 
+								+ stixRotated(0,0) * ( -stixRotated(1,2) * stixRotated(2,1) 
+													+ stixRotated(1,1) * stixRotated(2,2) ) ) 
+							+ pow(_c,2) * pow(kp,2) * ( pow(_c,2) * pow(kz,2) * 
+								( stixRotated(1,1) + stixRotated(2,2) ) 
+								+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,0) 
+											+ stixRotated(1,2) * stixRotated(2,1) 
+											- stixRotated(1,1) * 
+												( stixRotated(0,0) + stixRotated(2,2) ) ) ) );
+
+		std::cout << "Coeffs: " << std::endl;
+		std::cout << "k0: " << k0 << std::endl;
+		std::cout << "k1: " << k1 << std::endl;
+		std::cout << "k2: " << k2 << std::endl;
+		std::cout << "k3: " << k3 << std::endl;
+		std::cout << "k4: " << k4 << std::endl;
+
+		o2scl::simple_quartic_complex quart;
+		roots.clear();
+		roots.resize(4);
+		std::complex<double> rootsTmp[4];
+		quart.solve_c(k4,k3,k2,k1,k0,rootsTmp[0],rootsTmp[1],rootsTmp[2],rootsTmp[3]);
+
+		for(int i=0;i<4;i++)
+		{
+				roots[i] = rootsTmp[i];
+				std::cout << "Root: " << roots[i] << std::endl;
+		}
+
+		//std::sort(rootsVec.begin(),rootsVec.end());
+}
+

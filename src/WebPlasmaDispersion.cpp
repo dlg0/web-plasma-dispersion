@@ -20,6 +20,7 @@
 #include <Wt/Chart/WAxis>
 #include <stixVars.hpp>
 #include <constants.hpp>
+#include "dielectric.hpp"
 
 class IonSpec
 {
@@ -110,6 +111,7 @@ class DispersionApp : public Wt::WApplication
 			Wt::Chart::WCartesianChart *b_CartesianChart, *a_CartesianChart;
 			Wt::WStandardItemModel *b_model, *a_model;
 			Wt::Chart::WDataSeries *a_series, *b_series; 
+			Wt::Chart::WDataSeries *a_series2, *a_series3, *a_series4;
 
 			void greet();
 			void editedLineEdit(Wt::WLineEdit *LineEditIn, Wt::WText *ValidText);
@@ -272,16 +274,23 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			a_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
 			b_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
 
-			a_model = new Wt::WStandardItemModel(nX,2);
+			a_model = new Wt::WStandardItemModel(nX,3);
 			b_model = new Wt::WStandardItemModel(nX,2);
 
 			a_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
+			a_series2 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
+			a_series3 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
+			a_series4 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
 			b_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
 
 			AddChart(std::string("a"),std::string("x [m]"),std::string("b [T]"), a_CartesianChart, a_model);
 			AddChart(std::string("b"),std::string("x [m]"),std::string("b [T]"), b_CartesianChart, b_model);
 
 			a_CartesianChart->addSeries(*a_series);
+			a_CartesianChart->addSeries(*a_series2);
+			a_CartesianChart->addSeries(*a_series3);
+			a_CartesianChart->addSeries(*a_series4);
+
 			b_CartesianChart->addSeries(*b_series);
 
 			UpdateCalculation();
@@ -304,7 +313,7 @@ void DispersionApp::AddChart (std::string title, std::string xTitle, std::string
 	_Chart->setType(Wt::Chart::ScatterPlot);
 	//_Chart->setLegendEnabled(true);
 	_Chart->axis(Wt::Chart::XAxis).setLocation(Wt::Chart::ZeroValue);
-	_Chart->resize(600,300);
+	_Chart->resize(900,600);
 	_Chart->setPlotAreaPadding(200,Wt::Left);
 	_Chart->setPlotAreaPadding(80,Wt::Bottom);
 	_Chart->setLegendLocation(Wt::Chart::LegendOutside,Wt::Top,Wt::AlignRight);
@@ -405,6 +414,19 @@ void DispersionApp::UpdateCalculation()
 			UpdateIonSpecies();
 			UpdateBField();
 
+			// Update number of plot data points
+
+			std::cout << "Updating plots ..." << std::endl;
+
+			int nRows = a_model->rowCount();
+			if(nRows<nX) a_model->insertRows(nRows-1,nX-nRows);
+			if(nRows>nX) a_model->removeRows(0,nRows-nX);
+			std::cout << "nX: "<<nX<<" nRows: "<<a_model->rowCount()<<std::endl;
+
+			if(nRows<nX) b_model->insertRows(nRows-1,nX-nRows);
+			if(nRows>nX) b_model->removeRows(0,nRows-nX);
+
+
 			std::vector<double> tmp;
 
 			for(int i=0;i<nX;i++)
@@ -454,6 +476,7 @@ void DispersionApp::UpdateCalculation()
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
 
+				double _kPar = boost::lexical_cast<double>(kPar_LineEdit->text().narrow());
 				double _freq = boost::lexical_cast<double>(Freq_Hz_LineEdit->text().narrow());
 				double _omega = 2.0 * _pi * _freq;
 				StixVars stix(_omega, AllSpecies);
@@ -466,27 +489,38 @@ void DispersionApp::UpdateCalculation()
 
 				tmp.push_back(stix.R);
 
+				dielectric epsilon1(stix);
+
+				std::vector<float> bUnit;
+				bUnit.resize(3);
+				bUnit[0] = 0;
+				bUnit[1] = _bMag / _bMag;
+				bUnit[2] = 0;
+
+				epsilon1.rotateEpsilon(bUnit);
+				epsilon1.coldRoots(_omega,10.0,0.0);
+
+				// add new points to plot
+				//for (unsigned i = 0; i < nX; ++i) {
+				a_model->setData(i, 0, x[i]);
+				a_model->setData(i, 1, std::real(epsilon1.roots[0]));
+		  		a_model->setData(i, 2, std::real(epsilon1.roots[1]));
+				a_model->setData(i, 3, std::real(epsilon1.roots[2]));
+		  		a_model->setData(i, 4, std::real(epsilon1.roots[3]));
+
+				std::cout << "a value 1: " << std::real(epsilon1.roots[0]) << std::endl;
+				std::cout << "a value 2: " << std::real(epsilon1.roots[1]) << std::endl;
+				std::cout << "a value 3: " << std::real(epsilon1.roots[2]) << std::endl;
+				std::cout << "a value 4: " << std::real(epsilon1.roots[3]) << std::endl;
+
+				//}
+
+				//for (unsigned i = 0; i < nX; ++i) {
+				  b_model->setData(i, 0, x[i]);
+				  b_model->setData(i, 1, b[i]);
+				//}
+
 				AllSpecies.clear();
-			}
-
-			// Update plots
-
-			std::cout << "Updating plots ..." << std::endl;
-
-			int nRows = a_model->rowCount();
-			if(nRows<nX) a_model->insertRows(nRows-1,nX-nRows);
-			if(nRows>nX) a_model->removeRows(0,nRows-nX);
-			std::cout << "nX: "<<nX<<" nRows: "<<a_model->rowCount()<<std::endl;
-			for (unsigned i = 0; i < nX; ++i) {
-			  a_model->setData(i, 0, x[i]);
-			  a_model->setData(i, 1, tmp[i]);
-			}
-
-			if(nRows<nX) b_model->insertRows(nRows-1,nX-nRows);
-			if(nRows>nX) b_model->removeRows(0,nRows-nX);
-			for (unsigned i = 0; i < nX; ++i) {
-			  b_model->setData(i, 0, x[i]);
-			  b_model->setData(i, 1, b[i]);
 			}
 }
 

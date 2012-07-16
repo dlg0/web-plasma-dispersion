@@ -16,8 +16,17 @@ LFLAGS :=
 
 # Wt
 WTDIR:=/home/dg6/code/wt/wt-3.2-gnu-4.6
-INCLUDEFLAGS+= -I${WTDIR}/include
-LIBS+= -L${WTDIR}/lib -lwt -lwthttp -lboost_signals-mt -lboost_filesystem-mt -lboost_system-mt
+INCLUDEFLAGS+= -I${WTDIR}/include 
+LIBS+= -L${WTDIR}/lib -lwt -lwthttp -lboost_signals-mt -lboost_filesystem-mt -lboost_system-mt 
+
+# O2csl
+O2SCLDIR:=/home/dg6/code/o2scl
+INCLUDEFLAGS+=-I${O2SCLDIR}/include
+LIBS+= -L${O2SCLDIR}/lib -lo2scl
+
+# Armadillo
+
+LIBS+= -L/usr/lib64 -L/usr/lib64/atlas -lblas -lgslcblas -llapack -lclapack
 
 LINK := $(CPP) ${CPPFLAGS}
 

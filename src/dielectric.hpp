@@ -14,8 +14,10 @@ class dielectric
 		public:
 				arma::cx_mat stix;
 				arma::cx_mat stixRotated;
+				std::vector< std::complex<double> > roots;
 
 				void rotateEpsilon(std::vector<float> b);
+				void coldRoots(double, double, double);
 };
 
 #endif
