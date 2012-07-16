@@ -110,8 +110,9 @@ class DispersionApp : public Wt::WApplication
 
 			Wt::Chart::WCartesianChart *b_CartesianChart, *a_CartesianChart;
 			Wt::WStandardItemModel *b_model, *a_model;
-			Wt::Chart::WDataSeries *a_series, *b_series; 
-			Wt::Chart::WDataSeries *a_series2, *a_series3, *a_series4;
+			Wt::Chart::WDataSeries *b_series; 
+			Wt::Chart::WDataSeries *a_series1,*a_series2,*a_series3,*a_series4;
+			Wt::Chart::WDataSeries *a_series5,*a_series6,*a_series7,*a_series8;
 
 			Wt::Chart::WAxis *aYAxis, *aXAxis, *bYAxis, *bXAxis;
 
@@ -277,13 +278,18 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			a_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
 			b_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
 
-			a_model = new Wt::WStandardItemModel(nX,3);
+			a_model = new Wt::WStandardItemModel(nX,9);
 			b_model = new Wt::WStandardItemModel(nX,2);
 
-			a_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
+			a_series1 = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
 			a_series2 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
-			a_series3 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
-			a_series4 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
+			a_series3 = new Wt::Chart::WDataSeries(3,Wt::Chart::LineSeries);
+			a_series4 = new Wt::Chart::WDataSeries(4,Wt::Chart::LineSeries);
+			a_series5 = new Wt::Chart::WDataSeries(5,Wt::Chart::LineSeries);
+			a_series6 = new Wt::Chart::WDataSeries(6,Wt::Chart::LineSeries);
+			a_series7 = new Wt::Chart::WDataSeries(7,Wt::Chart::LineSeries);
+			a_series8 = new Wt::Chart::WDataSeries(8,Wt::Chart::LineSeries);
+
 			b_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
 
 			aYAxis = &(a_CartesianChart->axis(Wt::Chart::YAxis)); 
@@ -297,10 +303,14 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			AddChart(std::string("b"),std::string("x [m]"),std::string("b [T]"),
 						   b_CartesianChart, b_model, bXAxis, bYAxis);
 
-			a_CartesianChart->addSeries(*a_series);
+			a_CartesianChart->addSeries(*a_series1);
 			a_CartesianChart->addSeries(*a_series2);
 			a_CartesianChart->addSeries(*a_series3);
 			a_CartesianChart->addSeries(*a_series4);
+			a_CartesianChart->addSeries(*a_series5);
+			a_CartesianChart->addSeries(*a_series6);
+			a_CartesianChart->addSeries(*a_series7);
+			a_CartesianChart->addSeries(*a_series8);
 
 			b_CartesianChart->addSeries(*b_series);
 
@@ -429,6 +439,8 @@ void DispersionApp::UpdateCalculation()
 {
 			UpdateIonSpecies();
 			UpdateBField();
+			//aYAxis->setMaximum(100.0);
+			//aYAxis->setMinimum(-100.0);
 
 			// Update number of plot data points
 
@@ -519,10 +531,16 @@ void DispersionApp::UpdateCalculation()
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
 				a_model->setData(i, 0, x[i]);
+
 				a_model->setData(i, 1, std::real(epsilon1.roots[0]));
 		  		a_model->setData(i, 2, std::real(epsilon1.roots[1]));
 				a_model->setData(i, 3, std::real(epsilon1.roots[2]));
 		  		a_model->setData(i, 4, std::real(epsilon1.roots[3]));
+
+				a_model->setData(i, 5, std::imag(epsilon1.roots[0]));
+		  		a_model->setData(i, 6, std::imag(epsilon1.roots[1]));
+				a_model->setData(i, 7, std::imag(epsilon1.roots[2]));
+		  		a_model->setData(i, 8, std::imag(epsilon1.roots[3]));
 
 				std::cout << "a value 1: " << std::real(epsilon1.roots[0]) << std::endl;
 				std::cout << "a value 2: " << std::real(epsilon1.roots[1]) << std::endl;
@@ -539,8 +557,6 @@ void DispersionApp::UpdateCalculation()
 				AllSpecies.clear();
 			}
 
-			aYAxis->setMaximum(100.0);
-			aYAxis->setMinimum(-100.0);
 }
 
 Wt::WApplication *createApplication(const Wt::WEnvironment& env)
