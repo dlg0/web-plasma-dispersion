@@ -113,6 +113,8 @@ class DispersionApp : public Wt::WApplication
 			Wt::Chart::WDataSeries *a_series, *b_series; 
 			Wt::Chart::WDataSeries *a_series2, *a_series3, *a_series4;
 
+			Wt::Chart::WAxis *aYAxis, *aXAxis, *bYAxis, *bXAxis;
+
 			void greet();
 			void editedLineEdit(Wt::WLineEdit *LineEditIn, Wt::WText *ValidText);
 			void UpdateIonSpecies();
@@ -121,7 +123,8 @@ class DispersionApp : public Wt::WApplication
 			void UpdateBField();
 
 			void AddChart(std::string title, std::string xTitle, std::string yTitle, 
-							Wt::Chart::WCartesianChart *_chart, Wt::WStandardItemModel *_model);
+							Wt::Chart::WCartesianChart *_chart, Wt::WStandardItemModel *_model, 
+							Wt::Chart::WAxis *_xAxis, Wt::Chart::WAxis *_yAxis);
 
 			int nSpecies;
 
@@ -283,8 +286,16 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			a_series4 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
 			b_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
 
-			AddChart(std::string("a"),std::string("x [m]"),std::string("b [T]"), a_CartesianChart, a_model);
-			AddChart(std::string("b"),std::string("x [m]"),std::string("b [T]"), b_CartesianChart, b_model);
+			aYAxis = &(a_CartesianChart->axis(Wt::Chart::YAxis)); 
+			aXAxis = &(a_CartesianChart->axis(Wt::Chart::XAxis)); 
+
+			bYAxis = &(b_CartesianChart->axis(Wt::Chart::YAxis)); 
+			bXAxis = &(b_CartesianChart->axis(Wt::Chart::XAxis)); 
+
+			AddChart(std::string("a"),std::string("x [m]"),std::string("b [T]"),
+						   a_CartesianChart, a_model, aXAxis, aYAxis);
+			AddChart(std::string("b"),std::string("x [m]"),std::string("b [T]"),
+						   b_CartesianChart, b_model, bXAxis, bYAxis);
 
 			a_CartesianChart->addSeries(*a_series);
 			a_CartesianChart->addSeries(*a_series2);
@@ -297,7 +308,8 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 }
 
 void DispersionApp::AddChart (std::string title, std::string xTitle, std::string yTitle, 
-	 Wt::Chart::WCartesianChart *_Chart, Wt::WStandardItemModel *_model )
+	 Wt::Chart::WCartesianChart *_Chart, Wt::WStandardItemModel *_model, 
+		Wt::Chart::WAxis *_xAxis, Wt::Chart::WAxis *_yAxis )
 {
 
 	//int nX = x.size();
@@ -319,10 +331,14 @@ void DispersionApp::AddChart (std::string title, std::string xTitle, std::string
 	_Chart->setLegendLocation(Wt::Chart::LegendOutside,Wt::Top,Wt::AlignRight);
 	_Chart->setTitle(Wt::WString(title));
 
-	Wt::Chart::WAxis &yAxis = _Chart->axis(Wt::Chart::YAxis); 
-	Wt::Chart::WAxis &xAxis = _Chart->axis(Wt::Chart::XAxis); 
-	yAxis.setTitle(yTitle);
-	xAxis.setTitle(xTitle);
+	//Wt::Chart::WAxis &yAxis = _Chart->axis(Wt::Chart::YAxis); 
+	//Wt::Chart::WAxis &xAxis = _Chart->axis(Wt::Chart::XAxis); 
+
+	//_yAxis = _Chart->axis(Wt::Chart::YAxis); 
+	//_xAxis = _Chart->axis(Wt::Chart::XAxis); 
+	
+	_yAxis->setTitle(yTitle);
+	_xAxis->setTitle(xTitle);
 
 	_Chart->setXSeriesColumn(0);
 	//_Chart->addSeries(s);
@@ -522,6 +538,9 @@ void DispersionApp::UpdateCalculation()
 
 				AllSpecies.clear();
 			}
+
+			aYAxis->setMaximum(100.0);
+			aYAxis->setMinimum(-100.0);
 }
 
 Wt::WApplication *createApplication(const Wt::WEnvironment& env)
