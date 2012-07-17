@@ -9,6 +9,7 @@
 #include <armadillo>
 #include <o2scl/poly.h>
 #include "matpack.h"
+#include "rotation.hpp"
 
 dielectric::dielectric ( StixVars s )
 {
@@ -31,15 +32,26 @@ dielectric::dielectric ( StixVars s )
 }
 
 dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l, 
-				std::vector<complex<double> > _k_cyl )
+				arma::cx_colvec _k_cyl, std::vector<float> bUnit_cyl )
 {
-		complex<double> K0,K1,K2,K3,K4,K5;
+		std::complex<double> K0,K1,K2,K3,K4,K5;
+		std::complex<double> I(0.0,1.0);
+
+		RotationMatrix _rotQ(bUnit_cyl);
+		rotQ = _rotQ.rotQ;
+		rotQ.print("RotQ:");
+
+		arma::cx_colvec k_abp = rotQ * _k_cyl; // get k in alp,bet,prl (_abp)
 
 		for(int s=0;s<_s.size();s++) // species loop
 		{
 			for(int n=-_l;n<=_l;n++) // harmonic number loop
 			{
-					complex<double> zeta_n = ( _omega - n*_s[s].wc ) /  (_k_cyl[1]*_s[s].vTh);
+					std::complex<double> zeta_n = ( _omega - n*_s[s].wc ) /  (k_abp(2)*_s[s].vTh);
+					std::complex<double> w = MATPACK::Faddeeva_2(zeta_n);
+					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
+					std::complex<double> Zprime = -2.0*(1.0+zeta_n*Z);
+					std::cout << "Z: " << Z << std::endl;
 			}
 
 		}
@@ -47,54 +59,10 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 
 void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )
 {
-    // get vector perp to both z axis and b
-
-		arma::vec zaxis_ = arma::zeros<arma::vec>(3);
-		zaxis_(2) = 1;
-		arma::vec bUnit_ = arma::zeros<arma::vec>(3);
-		bUnit_(0) = bUnit_car[0];
-		bUnit_(1) = bUnit_car[1];
-		bUnit_(2) = bUnit_car[2];
-
-		arma::vec perp_ = arma::cross(zaxis_,bUnit_);
-
-    // check angle between perp and b
-
-		double perpDotB_ = arma::dot(perp_,bUnit_);
-		double perpMag_ = arma::norm(perp_,2);
-		double bUnitMag_ = arma::norm(bUnit_,2);
-
-		arma::vec perpUnit_(perp_ / perpMag_);
-
-    // get angle between z axis and b
-
-    	float theta = acos ( bUnit_(2) );
-
-    // calculate the quaternions
-
-    	float q0  = cos ( theta / 2.0 );
-    	float q1  = sin ( theta / 2.0 ) * perpUnit_(0);
-    	float q2  = sin ( theta / 2.0 ) * perpUnit_(1);
-    	float q3  = sin ( theta / 2.0 ) * perpUnit_(2);
-
-    // construct the rotation matrix
-
-		arma::mat rotQ = arma::zeros<arma::mat>(3,3);
-
-    	rotQ(0,0) = pow(q0,2)+pow(q1,2)-pow(q2,2)-pow(q3,2); 
-		rotQ(0,1) = 2*(q1*q2-q0*q3);
-		rotQ(0,2) = 2*(q1*q3+q0*q2);
-
-		rotQ(1,0) = 2*(q2*q1+q0*q3);
-		rotQ(1,1) = pow(q0,2)-pow(q1,2)+pow(q2,2)-pow(q3,2);
-		rotQ(1,2) = 2*(q2*q3-q0*q1);
-
-		rotQ(2,0) = 2*(q3*q1-q0*q2);
-		rotQ(2,1) = 2*(q3*q2+q0*q1);
-		rotQ(2,2) = pow(q0,2)-pow(q1,2)-pow(q2,2)+pow(q3,2);
-
 	// stix rotated
 
+		RotationMatrix _rotQ(bUnit_car);
+		rotQ = _rotQ.rotQ;
 		stixRotated = rotQ * stix * arma::inv(rotQ);
 		stixRotated.print();
 

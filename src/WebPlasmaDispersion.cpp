@@ -21,6 +21,7 @@
 #include <stixVars.hpp>
 #include <constants.hpp>
 #include "dielectric.hpp"
+#include <armadillo>
 
 class IonSpec
 {
@@ -533,7 +534,9 @@ void DispersionApp::UpdateCalculation()
 
 				float _bMag = b[i];
 				std::vector<PlasmaSpecies> AllSpecies;
+				std::vector<HotPlasmaSpecies> AllSpeciesHot;
 				double _ionDensity = 0.0;
+				float T_eV_tmp = 1000.0;
 				//ions
 				for(int s=0;s<nSpecies;s++)
 				{
@@ -562,6 +565,7 @@ void DispersionApp::UpdateCalculation()
 						}
 
 						AllSpecies.push_back(PlasmaSpecies(_z,_amu,_n,_bMag));
+						AllSpeciesHot.push_back(HotPlasmaSpecies(_z,_amu,_n,_bMag,T_eV_tmp));
 						_ionDensity += _z * _n;
 						std::cout << "_ionDensity: " << _ionDensity << std::endl;
 
@@ -571,6 +575,7 @@ void DispersionApp::UpdateCalculation()
 				}
 				//electrons
 				AllSpecies.push_back(PlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag));
+				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag,T_eV_tmp));
 
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
@@ -593,14 +598,22 @@ void DispersionApp::UpdateCalculation()
 
 				dielectric epsilon1(stix);
 
-				std::vector<float> bUnit;
-				bUnit.resize(3);
-				bUnit[0] = 0;
-				bUnit[1] = _bMag / _bMag;
-				bUnit[2] = 0;
+				arma::cx_colvec k_cyl(3);
+				double krGuess = 0.0;
+				k_cyl(0) = std::complex<double> (krGuess,0.0);
+				k_cyl(1) = std::complex<double> (kp,0.0);
+				k_cyl(2) = std::complex<double> (kz,0.0);
 
-				epsilon1.rotateEpsilon(bUnit);
+				std::vector<float> bu_cyl;
+				bu_cyl.resize(3);
+				bu_cyl[0] = 0;
+				bu_cyl[1] = _bMag / _bMag;
+				bu_cyl[2] = 0;
+
+				epsilon1.rotateEpsilon(bu_cyl);
 				epsilon1.coldRoots(_omega,kp,kz);
+
+				dielectric epsilonHot(AllSpeciesHot,_omega,3,k_cyl,bu_cyl);
 
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
@@ -629,6 +642,7 @@ void DispersionApp::UpdateCalculation()
 				//}
 
 				AllSpecies.clear();
+				AllSpeciesHot.clear();
 			}
 
 }

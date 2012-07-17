@@ -8,13 +8,14 @@ class dielectric
 {
 		public:
 				dielectric(StixVars);
-				dielectric(std::vector<HotPlasmaSpecies>, double, int, std::vector<std::complex<double> >);
+				dielectric(std::vector<HotPlasmaSpecies>, double,int,arma::cx_colvec,std::vector<float>);
 
 		private:
 				std::complex<double> I;
 		public:
 				arma::cx_mat stix;
 				arma::cx_mat stixRotated;
+				arma::mat rotQ;
 				std::vector< std::complex<double> > roots;
 
 				void rotateEpsilon(std::vector<float> b);
