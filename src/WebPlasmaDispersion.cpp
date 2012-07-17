@@ -90,9 +90,9 @@ class DispersionApp : public Wt::WApplication
 
 			std::vector<IonSpec> IonSpecies;
 
-			Wt::WGroupBox *West_Container, *Center_Container, *ParameterType_Container, *IonSpecies_Container, 
+			Wt::WGroupBox *West_Container, *Center_Container, *East_Container, *IonSpecies_Container, 
 					*PointParameterType_Container,*MagneticParameterType_Container;
-			Wt::WButtonGroup *ParameterType_ButtonGroup;
+			Wt::WButtonGroup *ParameterType_ButtonGroup, *yRange_ButtonGroup;
 			Wt::WComboBox *nIonSpecies_ComboBox;
 
 			// Scan
@@ -101,10 +101,15 @@ class DispersionApp : public Wt::WApplication
 			Wt::WLineEdit *nX_LineEdit;
 
 			// Magnetic field scan
-			float r0, b0, rMin, rMax, kPar;
-			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text;
+			float r0, b0, rMin, rMax, kPar, kp, kz, yRangeMin, yRangeMax;
+			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text,
+					*kp_Text, *kz_Text;
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
-					*kPar_LineEdit;
+					*kPar_LineEdit, *kz_LineEdit, *kp_LineEdit;
+
+			// Plot Y-Range controllers
+			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
+			Wt::WLineEdit *yRangeMin_LineEdit, *yRangeMax_LineEdit;
 
 			std::vector <float> x,b;
 
@@ -116,18 +121,22 @@ class DispersionApp : public Wt::WApplication
 
 			Wt::Chart::WAxis *aYAxis, *aXAxis, *bYAxis, *bXAxis;
 
+			int nSpecies;
+
+			enum yRangeType { Auto = 0, Manual = 1 };
+
 			void greet();
 			void editedLineEdit(Wt::WLineEdit *LineEditIn, Wt::WText *ValidText);
 			void UpdateIonSpecies();
 			void RevealParameterSettings();
 			void UpdateCalculation();
 			void UpdateBField();
-
+			void SetYRange();
 			void AddChart(std::string title, std::string xTitle, std::string yTitle, 
 							Wt::Chart::WCartesianChart *_chart, Wt::WStandardItemModel *_model, 
 							Wt::Chart::WAxis *_xAxis, Wt::Chart::WAxis *_yAxis);
+			void SetYRangeManual();
 
-			int nSpecies;
 
 };
 
@@ -147,6 +156,11 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			West_Container->setId("West");
 			West_Container->resize(250,400);
 			layout->addWidget(West_Container,Wt::WBorderLayout::West);
+
+			East_Container = new Wt::WGroupBox("East");
+			East_Container->setId("East");
+			East_Container->resize(250,400);
+			layout->addWidget(East_Container,Wt::WBorderLayout::East);
 
 			Center_Container = new Wt::WGroupBox("Center");
 			Center_Container->setId("Center");
@@ -169,24 +183,51 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			nX_LineEdit = new Wt::WLineEdit("100",West_Container);
 			nX = boost::lexical_cast<int>(nX_LineEdit->text().narrow());
 
+			Wt::WRadioButton *yRangeAuto_Button, *yRangeManu_Button;
+			yRange_ButtonGroup = new Wt::WButtonGroup(East_Container);
+		   	yRangeAuto_Button = new Wt::WRadioButton("Auto y-range",East_Container);
+			yRange_ButtonGroup->addButton(yRangeAuto_Button);
+			new Wt::WBreak(East_Container);
+			yRangeManu_Button = new Wt::WRadioButton("Manual y-range",East_Container);
+			yRange_ButtonGroup->addButton(yRangeManu_Button);
+			new Wt::WBreak(East_Container);
+			yRange_ButtonGroup->setCheckedButton(yRange_ButtonGroup->button(Auto));
+			yRange_ButtonGroup->checkedChanged().connect(
+							boost::bind(&DispersionApp::SetYRange,this));
+
+
+			yRangeMin_Text = new Wt::WText("yRangeMin",East_Container);
+			yRangeMin_LineEdit = new Wt::WLineEdit("-5000",East_Container);
+			yRangeMin_LineEdit->changed().connect(
+							boost::bind(&DispersionApp::SetYRange,this));
+			yRangeMin = boost::lexical_cast<double>(yRangeMin_LineEdit->text().narrow());
+			new Wt::WBreak(East_Container);
+
+			yRangeMax_Text = new Wt::WText("yRangeMax",East_Container);
+			yRangeMax_LineEdit = new Wt::WLineEdit("5000",East_Container);
+			yRangeMax_LineEdit->changed().connect(
+							boost::bind(&DispersionApp::SetYRange,this));
+			yRangeMax = boost::lexical_cast<double>(yRangeMax_LineEdit->text().narrow());
+			new Wt::WBreak(East_Container);
+
 			enum ParameterType { Point = 1, MagneticField = 2, Numerical = 3 };
 
-			ParameterType_Container = new Wt::WGroupBox("Parameter Scan Type");
-			layout->addWidget(ParameterType_Container,Wt::WBorderLayout::East);
-			ParameterType_ButtonGroup = new Wt::WButtonGroup(ParameterType_Container);
+			//ParameterType_Container = new Wt::WGroupBox("Parameter Scan Type");
+			//layout->addWidget(ParameterType_Container,Wt::WBorderLayout::East);
+			ParameterType_ButtonGroup = new Wt::WButtonGroup(East_Container);
 
 			Wt::WRadioButton *ParameterType_Button;
 
-			ParameterType_Button = new Wt::WRadioButton("Point", ParameterType_Container);
-			new Wt::WBreak(ParameterType_Container);
+			ParameterType_Button = new Wt::WRadioButton("Point", East_Container);
+			new Wt::WBreak(East_Container);
 			ParameterType_ButtonGroup->addButton(ParameterType_Button,Point);
 
-			ParameterType_Button = new Wt::WRadioButton("MagneticField", ParameterType_Container);
-			new Wt::WBreak(ParameterType_Container);
+			ParameterType_Button = new Wt::WRadioButton("MagneticField", East_Container);
+			new Wt::WBreak(East_Container);
 			ParameterType_ButtonGroup->addButton(ParameterType_Button,MagneticField);
 
-			ParameterType_Button = new Wt::WRadioButton("Numerical", ParameterType_Container);
-			new Wt::WBreak(ParameterType_Container);
+			ParameterType_Button = new Wt::WRadioButton("Numerical", East_Container);
+			new Wt::WBreak(East_Container);
 			ParameterType_ButtonGroup->addButton(ParameterType_Button,Numerical);
 
 			ParameterType_ButtonGroup->setCheckedButton(ParameterType_ButtonGroup->button(MagneticField));
@@ -239,6 +280,14 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			kPar_LineEdit = new Wt::WLineEdit("0.1",West_Container);
 			new Wt::WBreak(West_Container);
 
+			kp_Text = new Wt::WText("kphi",West_Container);
+			kp_LineEdit = new Wt::WLineEdit("10",West_Container);
+			new Wt::WBreak(West_Container);
+
+			kz_Text = new Wt::WText("kz",West_Container);
+			kz_LineEdit = new Wt::WLineEdit("0",West_Container);
+			new Wt::WBreak(West_Container);
+
 			r0_Text = new Wt::WText("r0",West_Container);
 			r0_LineEdit = new Wt::WLineEdit("2",West_Container);
 			new Wt::WBreak(West_Container);
@@ -281,14 +330,14 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			a_model = new Wt::WStandardItemModel(nX,9);
 			b_model = new Wt::WStandardItemModel(nX,2);
 
-			a_series1 = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
-			a_series2 = new Wt::Chart::WDataSeries(2,Wt::Chart::LineSeries);
-			a_series3 = new Wt::Chart::WDataSeries(3,Wt::Chart::LineSeries);
-			a_series4 = new Wt::Chart::WDataSeries(4,Wt::Chart::LineSeries);
-			a_series5 = new Wt::Chart::WDataSeries(5,Wt::Chart::LineSeries);
-			a_series6 = new Wt::Chart::WDataSeries(6,Wt::Chart::LineSeries);
-			a_series7 = new Wt::Chart::WDataSeries(7,Wt::Chart::LineSeries);
-			a_series8 = new Wt::Chart::WDataSeries(8,Wt::Chart::LineSeries);
+			a_series1 = new Wt::Chart::WDataSeries(1,Wt::Chart::PointSeries);
+			a_series2 = new Wt::Chart::WDataSeries(2,Wt::Chart::PointSeries);
+			a_series3 = new Wt::Chart::WDataSeries(3,Wt::Chart::PointSeries);
+			a_series4 = new Wt::Chart::WDataSeries(4,Wt::Chart::PointSeries);
+			a_series5 = new Wt::Chart::WDataSeries(5,Wt::Chart::PointSeries);
+			a_series6 = new Wt::Chart::WDataSeries(6,Wt::Chart::PointSeries);
+			a_series7 = new Wt::Chart::WDataSeries(7,Wt::Chart::PointSeries);
+			a_series8 = new Wt::Chart::WDataSeries(8,Wt::Chart::PointSeries);
 
 			b_series = new Wt::Chart::WDataSeries(1,Wt::Chart::LineSeries);
 
@@ -435,13 +484,35 @@ void DispersionApp::UpdateBField ()
 			
 }
 
+void DispersionApp::SetYRangeManual()
+{
+		yRange_ButtonGroup->setCheckedButton(yRange_ButtonGroup->button(Manual));
+}
+
+void DispersionApp::SetYRange()
+{
+	
+		int _auto = yRange_ButtonGroup->checkedId();
+		std::cout << "yRange_ButtonGroup Id: " << _auto << std::endl;
+
+		if(_auto!=0)
+		{
+			yRangeMin = boost::lexical_cast<double>(yRangeMin_LineEdit->text().narrow());
+			yRangeMax = boost::lexical_cast<double>(yRangeMax_LineEdit->text().narrow());
+
+			aYAxis->setMaximum(yRangeMax);
+			aYAxis->setMinimum(yRangeMin);
+		}
+		else
+		{
+			aYAxis->setAutoLimits(Wt::Chart::MinimumValue | Wt::Chart::MaximumValue);
+		}
+}
+
 void DispersionApp::UpdateCalculation()
 {
 			UpdateIonSpecies();
 			UpdateBField();
-			//aYAxis->setMaximum(100.0);
-			//aYAxis->setMinimum(-100.0);
-
 			// Update number of plot data points
 
 			std::cout << "Updating plots ..." << std::endl;
@@ -504,7 +575,10 @@ void DispersionApp::UpdateCalculation()
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
 
-				double _kPar = boost::lexical_cast<double>(kPar_LineEdit->text().narrow());
+				kPar = boost::lexical_cast<double>(kPar_LineEdit->text().narrow());
+				kp = boost::lexical_cast<double>(kp_LineEdit->text().narrow());
+				kz = boost::lexical_cast<double>(kz_LineEdit->text().narrow());
+
 				double _freq = boost::lexical_cast<double>(Freq_Hz_LineEdit->text().narrow());
 				double _omega = 2.0 * _pi * _freq;
 				StixVars stix(_omega, AllSpecies);
@@ -526,7 +600,7 @@ void DispersionApp::UpdateCalculation()
 				bUnit[2] = 0;
 
 				epsilon1.rotateEpsilon(bUnit);
-				epsilon1.coldRoots(_omega,10.0,0.0);
+				epsilon1.coldRoots(_omega,kp,kz);
 
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
