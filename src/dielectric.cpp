@@ -8,6 +8,7 @@
 #include <numeric>
 #include <armadillo>
 #include <o2scl/poly.h>
+#include "matpack.h"
 
 dielectric::dielectric ( StixVars s )
 {
@@ -27,6 +28,21 @@ dielectric::dielectric ( StixVars s )
 		stix(2,2) = s.P;
 
 		stix.print();
+}
+
+dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l, 
+				std::vector<complex<double> > _k_cyl )
+{
+		complex<double> K0,K1,K2,K3,K4,K5;
+
+		for(int s=0;s<_s.size();s++) // species loop
+		{
+			for(int n=-_l;n<=_l;n++) // harmonic number loop
+			{
+					complex<double> zeta_n = ( _omega - n*_s[s].wc ) /  (_k_cyl[1]*_s[s].vTh);
+			}
+
+		}
 }
 
 void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )

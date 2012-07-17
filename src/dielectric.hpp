@@ -8,6 +8,7 @@ class dielectric
 {
 		public:
 				dielectric(StixVars);
+				dielectric(std::vector<HotPlasmaSpecies>, double, int, std::vector<std::complex<double> >);
 
 		private:
 				std::complex<double> I;

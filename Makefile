@@ -28,6 +28,11 @@ LIBS+= -L${O2SCLDIR}/lib -lo2scl
 
 LIBS+= -L/usr/lib64 -L/usr/lib64/atlas -lblas -lgslcblas -llapack -lclapack
 
+# Matpack
+MATPACKDIR:=/home/dg6/code/matpack/matpack
+INCLUDEFLAGS+= -I${MATPACKDIR}/include
+LIBS+= ${MATPACKDIR}/matpack.a
+
 LINK := $(CPP) ${CPPFLAGS}
 
 # You shouldn't have to go below here

@@ -11,9 +11,20 @@ class PlasmaSpecies
 				double z, amu; // Atomic charge and mass
 				double wp, wc; // Plasma and Cyclotron angular frequencies 
 				double q, m, n, bMag; // Charge, mass, density, bMag
-
-
 };
+
+class HotPlasmaSpecies
+{
+		public:
+				HotPlasmaSpecies(double, double, double, float, float);
+		private:
+		public:
+				double z, amu; // Atomic charge and mass
+				double wp, wc; // Plasma and Cyclotron angular frequencies 
+				double q, m, n, bMag; // Charge, mass, density, bMag
+				double T_eV, vTh; // Temperature, Thermal velocity
+};
+
 
 class StixVars
 {
