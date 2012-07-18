@@ -20,6 +20,7 @@ class dielectric
 
 				void rotateEpsilon(std::vector<float> b);
 				void coldRoots(double, double, double);
+
 };
 
 #endif

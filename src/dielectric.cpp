@@ -10,6 +10,13 @@
 #include <o2scl/poly.h>
 #include "matpack.h"
 #include "rotation.hpp"
+#include <iostream>
+
+extern "C" { void __bessel_mod_MOD_besiexp( double*, double*, int*,
+			   	double[], double[], double[],
+			   	double[], double[], double[] ); }
+
+#define MAXL_ 10
 
 dielectric::dielectric ( StixVars s )
 {
@@ -43,15 +50,42 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 
 		arma::cx_colvec k_abp = rotQ * _k_cyl; // get k in alp,bet,prl (_abp)
 
+		double expBes_r[MAXL_];
+		double expBesPrime_r[MAXL_];
+		double expBesOverGam_r[MAXL_];	
+		double expBes_i[MAXL_];
+		double expBesPrime_i[MAXL_];
+		double expBesOverGam_i[MAXL_];	
+
 		for(int s=0;s<_s.size();s++) // species loop
 		{
+			double rho = _s[s].vTh / _omega;
+			std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
+			std::complex<double> lambda = pow(kPer,2)*pow(rho,2) / 2.0;
+
+			double lambda_r = lambda.real();
+			double lambda_i = lambda.imag();
+
+			__bessel_mod_MOD_besiexp(&lambda_r,&lambda_i,&_l,
+					expBes_r,expBes_i,
+					expBesPrime_r,expBesPrime_i,
+					expBesOverGam_r,expBesOverGam_r);					
+
+			arma::cx_colvec expBes(_l+1);
+			for(int n=0;n<=_l;n++)
+			{
+					expBes(n) = std::complex<double>(expBes_r[n],expBes_i[n]);
+					std::cout << "expBes("<<n<<"): " << expBes(abs(n)) <<", lambda: " << lambda 
+							<<", rho: " << rho << ", vTh: " << _s[s].vTh << std::endl;
+			}
+
 			for(int n=-_l;n<=_l;n++) // harmonic number loop
 			{
 					std::complex<double> zeta_n = ( _omega - n*_s[s].wc ) /  (k_abp(2)*_s[s].vTh);
 					std::complex<double> w = MATPACK::Faddeeva_2(zeta_n);
 					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
 					std::complex<double> Zprime = -2.0*(1.0+zeta_n*Z);
-					std::cout << "Z: " << Z << std::endl;
+					std::cout << "Z: " << Z << " , zeta_n: " << zeta_n << std::endl;
 			}
 
 		}

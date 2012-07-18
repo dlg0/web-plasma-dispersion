@@ -4,10 +4,12 @@ NAME := bin/WebPlasmaDispersion.wt
 
 CC := gcc
 CPP := g++
+F90 := gfortran
 
 MODULES := src include
 
 CFLAGS := 
+FFLAGS := -fdefault-real-8 -fbounds-check -fbacktrace
 CPPFLAGS := -g -pg 
 
 INCLUDEFLAGS := 
@@ -33,7 +35,7 @@ MATPACKDIR:=/home/dg6/code/matpack/matpack
 INCLUDEFLAGS+= -I${MATPACKDIR}/include
 LIBS+= ${MATPACKDIR}/matpack.a
 
-LINK := $(CPP) ${CPPFLAGS}
+LINK := $(CPP) ${CPPFLAGS} obj/bessel.o -lgfortran -lquadmath
 
 # You shouldn't have to go below here
 #
@@ -58,7 +60,7 @@ SRCTYPES := c cpp
 OBJ := $(foreach srctype, $(SRCTYPES), $(patsubst %.$(srctype), obj/%.o, $(wildcard $(patsubst %, %/*.$(srctype), $(MODULES)))))
 
 # link the program
-$(NAME) : $(OBJ)
+$(NAME) : $(OBJ) obj/bessel.o
 	$(LINK) $(LFLAGS) -o $@ $(OBJ) $(LIBS)
 	@echo 'Run webApp using ...'
 	@echo 'WT_TMP_DIR=/home/dg6/code/web-plasma-dispersion/tmp bin/WebPlasmaDispersion.wt --docroot ./ --http-address 0.0.0.0 --http-port 8080 -c ./wt_config.xml'
@@ -80,6 +82,9 @@ obj/%.o : %.c
 	@mkdir -p `echo '$@' | sed -e 's|/[^/]*.o$$||'`
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+obj/bessel.o : src/bessel.f90
+	$(F90) $(FFLAGS) -c -o $@ $<
+
 # include the C include dependencies
 DEP := $(patsubst obj/%.o, .dep/%.d, $(OBJ))
 
@@ -88,7 +93,7 @@ include $(DEP)
 endif
 
 clean:
-	-@rm $(NAME) $(OBJ) $(DEP) .dep/src/*
+	-@rm $(NAME) $(OBJ) $(DEP) .dep/src/* obj/bessel.o bessel_mod.mod
 
 allclean: 
 	-@rm $(NAME) $(OBJ) $(DEP) .dep/src/* webFace.wt src_webFace/*.o
