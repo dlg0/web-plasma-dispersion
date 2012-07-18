@@ -57,11 +57,18 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 		double expBesPrime_i[MAXL_];
 		double expBesOverGam_i[MAXL_];	
 
+		std::complex<double> omega_c(_omega,0.0);
+		std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
+		stix.zeros(3,3); // initialize the dielectric to zero
+
 		for(int s=0;s<_s.size();s++) // species loop
 		{
 			double rho = _s[s].vTh / _omega;
-			std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
 			std::complex<double> lambda = pow(kPer,2)*pow(rho,2) / 2.0;
+
+			std::complex<double> factor1 = pow(_s[s].wp,2)/(omega_c*k_abp(2)*_s[s].vTh);
+			std::complex<double> factor2 = kPer*pow(_s[s].wp,2)/(2.0*k_abp(2)*omega_c*_s[s].wc);
+			double e_swan = _s[s].z/abs(_s[s].z);
 
 			double lambda_r = lambda.real();
 			double lambda_i = lambda.imag();
@@ -72,23 +79,85 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 					expBesOverGam_r,expBesOverGam_r);					
 
 			arma::cx_colvec expBes(_l+1);
+			arma::cx_colvec expBesPrime(_l+1);
+			arma::cx_colvec expBesOverGam(_l+1);
+
 			for(int n=0;n<=_l;n++)
 			{
 					expBes(n) = std::complex<double>(expBes_r[n],expBes_i[n]);
+					expBesPrime(n) = std::complex<double>(expBesPrime_r[n],expBesPrime_i[n]);
+					expBesOverGam(n) = std::complex<double>(expBesOverGam_r[n],expBesOverGam_i[n]);
+
 					std::cout << "expBes("<<n<<"): " << expBes(abs(n)) <<", lambda: " << lambda 
 							<<", rho: " << rho << ", vTh: " << _s[s].vTh << std::endl;
 			}
 
+			std::complex<double> K0 = std::complex<double>(0.0,0.0);
+			std::complex<double> K1 = std::complex<double>(0.0,0.0);
+			std::complex<double> K2 = std::complex<double>(0.0,0.0);
+			std::complex<double> K3 = std::complex<double>(0.0,0.0);
+			std::complex<double> K4 = std::complex<double>(0.0,0.0);
+
 			for(int n=-_l;n<=_l;n++) // harmonic number loop
 			{
+
+					int nabs = abs(n);
+					std::complex<double> n_c(n,0.0);
+
 					std::complex<double> zeta_n = ( _omega - n*_s[s].wc ) /  (k_abp(2)*_s[s].vTh);
 					std::complex<double> w = MATPACK::Faddeeva_2(zeta_n);
 					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
 					std::complex<double> Zprime = -2.0*(1.0+zeta_n*Z);
 					std::cout << "Z: " << Z << " , zeta_n: " << zeta_n << std::endl;
+					std::complex<double> InExp = expBes(nabs);
+					std::complex<double> InPrimeExp = expBesPrime(nabs);
+					std::complex<double> InOverLambdaExp = expBesOverGam(nabs);
+
+					K0 += lambda*(InExp-InPrimeExp)*Z;
+					K1 += pow(n,2)*InOverLambdaExp*Z;
+					K2 += n_c*(InExp-InPrimeExp)*Z;
+					K3 += InExp*zeta_n*Zprime;
+					K4 += n_c*InOverLambdaExp*Zprime;
+					K5 += (InExp-InPrimeExp)*Zprime;
 			}
 
+			K0 = 2.0*factor1*K0;
+			K1 = 1.0+factor1*K1;
+			K2 = I*e_swan*factor1*K2;
+			K3 = 1.0-factor1*K3;
+			K4 = factor2*K4;
+			K5 = I*e_swan*factor2*K5;
+
 		}
+
+		std::complex<double> cosPsi = k_abp(0)/kPer;
+		std::complex<double> sinPsi = k_abp(1)/kPer;
+
+		stix(0,0) = K1+pow(sinPsi,2)*K0;
+		stix(0,1) = K2-cosPsi*sinPsi*K0;
+		stix(0,2) = cosPsi*K4+sinPsi*K5;
+	
+		stix(1,0) = -K2-cosPsi*sinPsi*K0;
+		stix(1,1) = K1+pow(cosPsi,2)*K0;
+		stix(1,2) = sinPsi*K4-cosPsi*K5;
+
+		stix(2,0) = cosPsi*K4-sinPsi*K5;
+		stix(2,1) = sinPsi*K4+cosPsi*K5;
+		stix(2,2) = K3;
+	
+		// rememeber the above is the dielectric 
+		// and below we turn it into a conductivity
+
+		arma::mat ident;
+		ident.zeros(3,3);
+		ident(0,0) = 1;
+		ident(1,1) = 1;
+		ident(2,2) = 1;
+
+		stix = -(stix-ident)*omega_c*_e0*I;
+
+		stix.print("Hot sigma stix:");
+
 }
 
 void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )

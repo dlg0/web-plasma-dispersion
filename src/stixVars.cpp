@@ -26,7 +26,7 @@ HotPlasmaSpecies::HotPlasmaSpecies(double _z, double _amu, double _n, float _bMa
 	wp = sqrt( n*pow(q,2) / (m*_e0) );
 	wc = q * bMag / m;
 	T_eV = _TeV;
-	vTh = sqrt ( 2.0 * T_eV / m);
+	vTh = sqrt ( 2.0 * T_eV*_e / m);
 }
 
 StixVars::StixVars(double _omega, std::vector<PlasmaSpecies> _s)
