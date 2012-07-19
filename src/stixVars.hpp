@@ -11,6 +11,7 @@ class PlasmaSpecies
 				double z, amu; // Atomic charge and mass
 				double wp, wc; // Plasma and Cyclotron angular frequencies 
 				double q, m, n, bMag; // Charge, mass, density, bMag
+				double e_swan; // q/|q| and wc is ALWAYS postive
 };
 
 class HotPlasmaSpecies
@@ -23,6 +24,7 @@ class HotPlasmaSpecies
 				double wp, wc; // Plasma and Cyclotron angular frequencies 
 				double q, m, n, bMag; // Charge, mass, density, bMag
 				double T_eV, vTh; // Temperature, Thermal velocity
+				double e_swan; // q/|q| and wc is ALWAYS postive
 };
 
 

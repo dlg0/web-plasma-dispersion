@@ -103,10 +103,11 @@ class DispersionApp : public Wt::WApplication
 
 			// Magnetic field scan
 			float r0, b0, rMin, rMax, kPar, kp, kz, yRangeMin, yRangeMax;
+			double Temp_eV;
 			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text,
-					*kp_Text, *kz_Text;
+					*kp_Text, *kz_Text, *Temp_eV_Text;
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
-					*kPar_LineEdit, *kz_LineEdit, *kp_LineEdit;
+					*kPar_LineEdit, *kz_LineEdit, *kp_LineEdit, *Temp_eV_LineEdit;
 
 			// Plot Y-Range controllers
 			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
@@ -286,7 +287,11 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			new Wt::WBreak(West_Container);
 
 			kz_Text = new Wt::WText("kz",West_Container);
-			kz_LineEdit = new Wt::WLineEdit("0",West_Container);
+			kz_LineEdit = new Wt::WLineEdit("10",West_Container);
+			new Wt::WBreak(West_Container);
+
+			Temp_eV_Text = new Wt::WText("Temp_eV",West_Container);
+			Temp_eV_LineEdit = new Wt::WLineEdit("1000.0",West_Container);
 			new Wt::WBreak(West_Container);
 
 			r0_Text = new Wt::WText("r0",West_Container);
@@ -536,7 +541,7 @@ void DispersionApp::UpdateCalculation()
 				std::vector<PlasmaSpecies> AllSpecies;
 				std::vector<HotPlasmaSpecies> AllSpeciesHot;
 				double _ionDensity = 0.0;
-				float T_eV_tmp = 1000.0;
+				Temp_eV = boost::lexical_cast<double>(Temp_eV_LineEdit->text().narrow());
 				//ions
 				for(int s=0;s<nSpecies;s++)
 				{
@@ -565,7 +570,7 @@ void DispersionApp::UpdateCalculation()
 						}
 
 						AllSpecies.push_back(PlasmaSpecies(_z,_amu,_n,_bMag));
-						AllSpeciesHot.push_back(HotPlasmaSpecies(_z,_amu,_n,_bMag,T_eV_tmp));
+						AllSpeciesHot.push_back(HotPlasmaSpecies(_z,_amu,_n,_bMag,Temp_eV));
 						_ionDensity += _z * _n;
 						std::cout << "_ionDensity: " << _ionDensity << std::endl;
 
@@ -575,7 +580,7 @@ void DispersionApp::UpdateCalculation()
 				}
 				//electrons
 				AllSpecies.push_back(PlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag));
-				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag,T_eV_tmp));
+				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag,Temp_eV));
 
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
@@ -614,6 +619,8 @@ void DispersionApp::UpdateCalculation()
 				epsilon1.coldRoots(_omega,kp,kz);
 
 				dielectric epsilonHot(AllSpeciesHot,_omega,3,k_cyl,bu_cyl);
+
+				epsilon1.stix.print("Cold dielectric: ");
 
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
