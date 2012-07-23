@@ -21,34 +21,25 @@ extern "C" { void __bessel_mod_MOD_besiexp( double*, double*, int*,
 dielectric::dielectric ( StixVars s )
 {
 		I = std::complex<double>(0.0,1.0);
-		stix.zeros(3,3);
+		epsilon.zeros(3,3);
 
-		stix(0,0) = s.S;
-		stix(0,1) = -I*s.D ;
-		stix(0,2) = 0;
+		epsilon(0,0) = s.S;
+		epsilon(0,1) = -I*s.D ;
+		epsilon(0,2) = 0;
 
-		stix(1,0) = I*s.D;
-		stix(1,1) = s.S ;
-		stix(1,2) = 0;
+		epsilon(1,0) = I*s.D;
+		epsilon(1,1) = s.S ;
+		epsilon(1,2) = 0;
 
-		stix(2,0) = 0;
-		stix(2,1) = 0 ;
-		stix(2,2) = s.P;
-
-		stix.print("Stix cold dielectric: ");
+		epsilon(2,0) = 0;
+		epsilon(2,1) = 0 ;
+		epsilon(2,2) = s.P;
 }
 
-dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l, 
-				arma::cx_colvec _k_cyl, std::vector<float> bUnit_cyl )
+dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l, arma::cx_colvec _k_abp )
 {
 		std::complex<double> K0,K1,K2,K3,K4,K5;
 		std::complex<double> I(0.0,1.0);
-
-		RotationMatrix _rotQ(bUnit_cyl);
-		rotQ = _rotQ.rotQ;
-		rotQ.print("RotQ:");
-
-		arma::cx_colvec k_abp = rotQ * _k_cyl; // get k in alp,bet,prl (_abp)
 
 		double expBes_r[MAXL_];
 		double expBesPrime_r[MAXL_];
@@ -58,26 +49,27 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 		double expBesOverGam_i[MAXL_];	
 
 		std::complex<double> omega_c(_omega,_omega*0.0);
-		std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
-		std::complex<double> cosPsi = k_abp(0)/kPer;
-		std::complex<double> sinPsi = k_abp(1)/kPer;
+		std::complex<double> kPer = sqrt(pow(_k_abp(0),2)+pow(_k_abp(1),2));
+		std::complex<double> cosPsi = _k_abp(0)/kPer;
+		std::complex<double> sinPsi = _k_abp(1)/kPer;
 
-		stix.zeros(3,3); // initialize the dielectric to zero
+		epsilon.zeros(3,3); // initialize the dielectric to zero
 
 		for(int s=0;s<_s.size();s++) // species loop
 		{
 			double rho = _s[s].vTh / _omega;
 			std::complex<double> lambda = pow(kPer,2)*pow(rho,2) / 2.0;
 
-			std::complex<double> factor1 = pow(_s[s].wp,2)/(omega_c*k_abp(2)*_s[s].vTh);
+			std::complex<double> factor1 = pow(_s[s].wp,2)/(omega_c*_k_abp(2)*_s[s].vTh);
+#ifdef _DEBUG
 			std::cout<<"factor1 components: "<<std::endl;
 			std::cout<<"wp: "<<_s[s].wp<<std::endl;
 			std::cout<<"omega_c: "<<omega_c<<std::endl;
-			std::cout<<"kp: "<<k_abp(2)<<std::endl;
+			std::cout<<"kp: "<<_k_abp(2)<<std::endl;
 			std::cout<<"vTh: "<<_s[s].vTh<<std::endl;
 			std::cout<<"density: "<<_s[s].n<<std::endl;
-
-			std::complex<double> factor2 = kPer*pow(_s[s].wp,2)/(2.0*k_abp(2)*omega_c*_s[s].wc);
+#endif
+			std::complex<double> factor2 = kPer*pow(_s[s].wp,2)/(2.0*_k_abp(2)*omega_c*_s[s].wc);
 			double e_swan = _s[s].z/abs(_s[s].z);
 
 			double lambda_r = lambda.real();
@@ -97,11 +89,12 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 					expBes(n) = std::complex<double>(expBes_r[n],expBes_i[n]);
 					expBesPrime(n) = std::complex<double>(expBesPrime_r[n],expBesPrime_i[n]);
 					expBesOverGam(n) = std::complex<double>(expBesOverGam_r[n],expBesOverGam_i[n]);
-
+#ifdef _DEBUG
 					std::cout << "expBes("<<n<<"): " << expBes(abs(n)) <<std::endl;
 					std::cout << "expBesPrime("<<n<<"): " << expBesPrime(abs(n)) <<std::endl;
 					std::cout << "expBesOverGam("<<n<<"): " << expBesOverGam(abs(n));
 					std::cout<<", lambda: " << lambda <<", rho: " << rho << ", vTh: " << _s[s].vTh << std::endl;
+#endif
 			}
 
 			K0 = std::complex<double>(0.0,0.0);
@@ -116,11 +109,13 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 					int nabs = abs(n);
 					std::complex<double> n_c(n,0.0);
 
-					std::complex<double> zeta_n = ( omega_c + n*_s[s].wc ) /  (k_abp(2)*_s[s].vTh);
+					std::complex<double> zeta_n = ( omega_c + n*_s[s].wc ) /  (_k_abp(2)*_s[s].vTh);
 					std::complex<double> w = MATPACK::Faddeeva_2(zeta_n);
 					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
 					std::complex<double> Zprime = -2.0*(1.0+zeta_n*Z);
+#ifdef _DEBUG
 					std::cout << "Z: " << Z << " , zeta_n: " << zeta_n << std::endl;
+#endif
 					std::complex<double> InExp = expBes(nabs);
 					std::complex<double> InPrimeExp = expBesPrime(nabs);
 					std::complex<double> InOverLambdaExp = expBesOverGam(nabs);
@@ -131,7 +126,7 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 					K3 += InExp*zeta_n*Zprime;
 					K4 += n_c*InOverLambdaExp*Zprime;
 					K5 += (InExp-InPrimeExp)*Zprime;
-
+#ifdef _DEBUG
 					std::cout << "K0: " << K0 << std::endl;
 					std::cout << "K1: " << K1 << std::endl;
 					std::cout << "K2: " << K2 << std::endl;
@@ -139,6 +134,7 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 					std::cout << "K4: " << K4 << std::endl;
 					std::cout << "K5: " << K5 << std::endl;
 					std::cout << "Zprime: "<<Zprime<<std::endl;
+#endif
 			}
 
 			K0 = 2.0*factor1*K0;
@@ -147,30 +143,28 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 			K3 = 1.0-factor1*K3;
 			K4 = factor2*K4;
 			K5 = I*e_swan*factor2*K5;
-
+#ifdef _DEBUG
 			std::cout << "factor1: " << factor1 << std::endl;
 			std::cout << "factor2: " << factor2 << std::endl;
 			std::cout << "e_swan: " << e_swan << std::endl;
 			std::cout <<"sinPsi: "<<sinPsi<<std::endl;
 			std::cout <<"cosPsi: "<<cosPsi<<std::endl;
-
+#endif
 			// rememeber the above is the dielectric 
 			// and below we turn it into a conductivity
 			
-			stix(0,0) += K1+pow(sinPsi,2)*K0;
-			stix(0,1) += K2-cosPsi*sinPsi*K0;
-			stix(0,2) += cosPsi*K4+sinPsi*K5;
+			epsilon(0,0) += K1+pow(sinPsi,2)*K0;
+			epsilon(0,1) += K2-cosPsi*sinPsi*K0;
+			epsilon(0,2) += cosPsi*K4+sinPsi*K5;
 	
-			stix(1,0) += -K2-cosPsi*sinPsi*K0;
-			stix(1,1) += K1+pow(cosPsi,2)*K0;
-			stix(1,2) += sinPsi*K4-cosPsi*K5;
+			epsilon(1,0) += -K2-cosPsi*sinPsi*K0;
+			epsilon(1,1) += K1+pow(cosPsi,2)*K0;
+			epsilon(1,2) += sinPsi*K4-cosPsi*K5;
 
-			stix(2,0) += cosPsi*K4-sinPsi*K5;
-			stix(2,1) += sinPsi*K4+cosPsi*K5;
-			stix(2,2) += K3;
+			epsilon(2,0) += cosPsi*K4-sinPsi*K5;
+			epsilon(2,1) += sinPsi*K4+cosPsi*K5;
+			epsilon(2,2) += K3;
 	
-			stix.print("Hot dielectric stix:");
-
 		}
 
 		arma::mat ident;
@@ -179,20 +173,19 @@ dielectric::dielectric ( std::vector<HotPlasmaSpecies> _s, double _omega, int _l
 		ident(1,1) = 1;
 		ident(2,2) = 1;
 
-		stix = -(stix-ident)*omega_c*_e0*I;
-		stix.print("Hot conductivity stix:");
+		//stix = -(stix-ident)*omega_c*_e0*I;
+		//stix.print("Hot conductivity stix:");
 
 }
 
-void dielectric::rotateEpsilon ( std::vector<float> bUnit_car )
+void dielectric::rotate ( arma::mat _rot )
 {
-	// stix rotated
+		epsilon = _rot * epsilon * arma::inv(_rot);
+}
 
-		RotationMatrix _rotQ(bUnit_car);
-		rotQ = _rotQ.rotQ;
-		stixRotated = rotQ * stix * arma::inv(rotQ);
-		stixRotated.print();
-
+void dielectric::rotate ( arma::cx_mat _rot )
+{
+		epsilon = _rot * epsilon * arma::inv(_rot);
 }
 
 void dielectric::coldRoots( double w, double kp, double kz)
@@ -200,63 +193,63 @@ void dielectric::coldRoots( double w, double kp, double kz)
 
 		// see rsfxc_1D.nb for the derivation of these polynomial coeffs.
 
-		std::complex<double> k4 = pow(w,2)/pow(_c,2) * stixRotated(0,0);
+		std::complex<double> k4 = pow(w,2)/pow(_c,2) * epsilon(0,0);
 
 		std::complex<double> k3 = pow(w,2)/pow(_c,2) 
-				* ( kp * ( stixRotated(0,1) + stixRotated(1,0) ) 
-						+ kz * ( stixRotated(0,2) + stixRotated(2,0) ) );
+				* ( kp * ( epsilon(0,1) + epsilon(1,0) ) 
+						+ kz * ( epsilon(0,2) + epsilon(2,0) ) );
 
-		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kp,2) * ( stixRotated(0,0) + stixRotated(1,1) ) 
-						+ pow(_c,2) * kz * kp * ( stixRotated(1,2) + stixRotated(2,1) ) 
-						+ pow(_c,2) * pow(kz,2) * ( stixRotated(0,0) + stixRotated(2,2) ) 
-						+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,0) 
-										+ stixRotated(0,2) * stixRotated(2,0)
-										- stixRotated(0,0) * ( stixRotated(1,1) + stixRotated(2,2) ) ) );
+		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kp,2) * ( epsilon(0,0) + epsilon(1,1) ) 
+						+ pow(_c,2) * kz * kp * ( epsilon(1,2) + epsilon(2,1) ) 
+						+ pow(_c,2) * pow(kz,2) * ( epsilon(0,0) + epsilon(2,2) ) 
+						+ pow(w,2) * ( epsilon(0,1) * epsilon(1,0) 
+										+ epsilon(0,2) * epsilon(2,0)
+										- epsilon(0,0) * ( epsilon(1,1) + epsilon(2,2) ) ) );
 
-		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kz,2) * kp * ( stixRotated(0,1) + stixRotated(1,0) )
-						+ pow(_c,2) * pow(kz,3) * ( stixRotated(0,2) + stixRotated(2,0) )
-						+ kz * ( pow(_c,2) * pow(kp,2) * ( stixRotated(0,2) + stixRotated(2,0) )
-							+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,2) 
-										- stixRotated(1,1) * ( stixRotated(0,2) + stixRotated(2,0) )
-										+ stixRotated(1,0) * stixRotated(2,1) ) ) 
-						+ kp * ( pow(w,2) * ( stixRotated(1,2) * stixRotated(2,0)
-												+ stixRotated(0,2) * stixRotated(2,1) )
-									+ ( stixRotated(0,1) + stixRotated(1,0) ) 
-										* ( pow(_c,2) * pow(kp,2) - pow(w,2) * stixRotated(2,2) ) ) );
+		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kz,2) * kp * ( epsilon(0,1) + epsilon(1,0) )
+						+ pow(_c,2) * pow(kz,3) * ( epsilon(0,2) + epsilon(2,0) )
+						+ kz * ( pow(_c,2) * pow(kp,2) * ( epsilon(0,2) + epsilon(2,0) )
+							+ pow(w,2) * ( epsilon(0,1) * epsilon(1,2) 
+										- epsilon(1,1) * ( epsilon(0,2) + epsilon(2,0) )
+										+ epsilon(1,0) * epsilon(2,1) ) ) 
+						+ kp * ( pow(w,2) * ( epsilon(1,2) * epsilon(2,0)
+												+ epsilon(0,2) * epsilon(2,1) )
+									+ ( epsilon(0,1) + epsilon(1,0) ) 
+										* ( pow(_c,2) * pow(kp,2) - pow(w,2) * epsilon(2,2) ) ) );
 		
-		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow(kp,4) * stixRotated(1,1) 
-							+ pow(_c,4) * kz * pow(kp,3) * ( stixRotated(1,2) + stixRotated(2,1) ) 
+		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow(kp,4) * epsilon(1,1) 
+							+ pow(_c,4) * kz * pow(kp,3) * ( epsilon(1,2) + epsilon(2,1) ) 
 							+ pow(_c,2) * kz * kp 
-                                * ( pow(_c,2) * pow(kz,2) * ( stixRotated(1,2) + stixRotated(2,1) ) 
-									+ pow(w,2) * ( stixRotated(0,2) * stixRotated(1,0) 
-													+ stixRotated(0,1) * stixRotated(2,0) 
-													- stixRotated(0,0) * 
-														( stixRotated(1,2) + stixRotated(2,1) ) ) ) 
-							+ pow(_c,4) * pow(kz,4) * stixRotated(2,2) 
+                                * ( pow(_c,2) * pow(kz,2) * ( epsilon(1,2) + epsilon(2,1) ) 
+									+ pow(w,2) * ( epsilon(0,2) * epsilon(1,0) 
+													+ epsilon(0,1) * epsilon(2,0) 
+													- epsilon(0,0) * 
+														( epsilon(1,2) + epsilon(2,1) ) ) ) 
+							+ pow(_c,4) * pow(kz,4) * epsilon(2,2) 
 							+ pow(_c,2) * pow(w,2) * pow(kz,2) 
-								* ( stixRotated(0,2) * stixRotated(2,0) 
-									+ stixRotated(1,2) * stixRotated(2,1) 
-									- ( stixRotated(0,0) + stixRotated(1,1) ) * stixRotated(2,2) ) 
-							+pow(w,4) * ( stixRotated(0,2) * ( -stixRotated(1,1) * stixRotated(2,0) 
-															+ stixRotated(1,0) * stixRotated(2,1) ) 
-								+ stixRotated(0,1) * ( stixRotated(1,2) * stixRotated(2,0) 
-													- stixRotated(1,0) * stixRotated(2,2) ) 
-								+ stixRotated(0,0) * ( -stixRotated(1,2) * stixRotated(2,1) 
-													+ stixRotated(1,1) * stixRotated(2,2) ) ) 
+								* ( epsilon(0,2) * epsilon(2,0) 
+									+ epsilon(1,2) * epsilon(2,1) 
+									- ( epsilon(0,0) + epsilon(1,1) ) * epsilon(2,2) ) 
+							+pow(w,4) * ( epsilon(0,2) * ( -epsilon(1,1) * epsilon(2,0) 
+															+ epsilon(1,0) * epsilon(2,1) ) 
+								+ epsilon(0,1) * ( epsilon(1,2) * epsilon(2,0) 
+													- epsilon(1,0) * epsilon(2,2) ) 
+								+ epsilon(0,0) * ( -epsilon(1,2) * epsilon(2,1) 
+													+ epsilon(1,1) * epsilon(2,2) ) ) 
 							+ pow(_c,2) * pow(kp,2) * ( pow(_c,2) * pow(kz,2) * 
-								( stixRotated(1,1) + stixRotated(2,2) ) 
-								+ pow(w,2) * ( stixRotated(0,1) * stixRotated(1,0) 
-											+ stixRotated(1,2) * stixRotated(2,1) 
-											- stixRotated(1,1) * 
-												( stixRotated(0,0) + stixRotated(2,2) ) ) ) );
-
+								( epsilon(1,1) + epsilon(2,2) ) 
+								+ pow(w,2) * ( epsilon(0,1) * epsilon(1,0) 
+											+ epsilon(1,2) * epsilon(2,1) 
+											- epsilon(1,1) * 
+												( epsilon(0,0) + epsilon(2,2) ) ) ) );
+#ifdef _DEBUG
 		std::cout << "Coeffs: " << std::endl;
 		std::cout << "k0: " << k0 << std::endl;
 		std::cout << "k1: " << k1 << std::endl;
 		std::cout << "k2: " << k2 << std::endl;
 		std::cout << "k3: " << k3 << std::endl;
 		std::cout << "k4: " << k4 << std::endl;
-
+#endif
 		o2scl::simple_quartic_complex quart;
 		roots.clear();
 		roots.resize(4);

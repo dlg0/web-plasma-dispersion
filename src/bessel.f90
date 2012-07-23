@@ -886,12 +886,12 @@ contains
         integer :: status
         complex(kind=dbl) :: gamma_dbl, gamma_
 
-        write(*,*) "besIExp - gamma_re: ", gamma_re, " gamma_im: ", gamma_im, " lMax: ", lMax
+        !write(*,*) "besIExp - gamma_re: ", gamma_re, " gamma_im: ", gamma_im, " lMax: ", lMax
 
         gamma_ = complex(gamma_re,gamma_im)
         gamma_dbl = gamma_
 
-        write(*,*) "besIExp - Allocating arrays"
+        !write(*,*) "besIExp - Allocating arrays"
 
         !LAB  added to lenght of arrays 1 and 3 to allow for lmax = 0
         allocate ( besselI(0:lMax+1), besselIPrime(0:lMax), b(lMax+2), stat = status )
@@ -905,9 +905,9 @@ contains
 
         if ( cabs ( gamma_ ) <= 700.) then
 
-           write(*,*) "besIExp - <=700.0"
+           !write(*,*) "besIExp - <=700.0"
            nmax = lmax
-           write(*,*) "besIExp - calling besic"
+           !write(*,*) "besIExp - calling besic"
            call besic ( gamma_dbl, nmax, b, ier)
 
            if (ier/=0) then
@@ -918,11 +918,11 @@ contains
               besselI(l) = b(l+1)
            enddo
 
-           write(*,*) "besIExp - fill besselIPrime and expBes"
+           !write(*,*) "besIExp - fill besselIPrime and expBes"
 
            do l = 0, lmax
 
-             write(*,*) "besIExp: ", l
+             !write(*,*) "besIExp: ", l
              if(l == 0) besselIPrime(0) = besselI(1)
              if(l /= 0) besselIPrime(l) = besselI(l-1) - l / gamma_dbl * besselI(l)
              expBes(l+1) = expGam * besselI(l)
@@ -932,7 +932,7 @@ contains
 
         else
 
-           write(*,*) "besIExp - else"
+           !write(*,*) "besIExp - else"
 
            do l = 0, lmax
               call bes_asym ( gamma_, l, expBes(l+1), expBesPrime(l+1) )
@@ -944,7 +944,7 @@ contains
            expBesOverGam(l+1) = expBes(l+1) / gamma_
         enddo
 
-        write(*,*) "besIExp - COMPLETE"
+        !write(*,*) "besIExp - COMPLETE"
 
         deallocate ( b )
         deallocate ( besselI )

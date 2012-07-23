@@ -22,6 +22,7 @@
 #include <constants.hpp>
 #include "dielectric.hpp"
 #include <armadillo>
+#include "rotation.hpp"
 
 class IonSpec
 {
@@ -601,45 +602,56 @@ void DispersionApp::UpdateCalculation()
 
 				tmp.push_back(stix.R);
 
-				dielectric epsilon1(stix);
+				arma::cx_colvec k_rtz(3);
+				double krGuess = 5.0;
+				k_rtz(0) = std::complex<double> (krGuess,0.0);
+				k_rtz(1) = std::complex<double> (kp,0.0);
+				k_rtz(2) = std::complex<double> (kz,0.0);
 
-				arma::cx_colvec k_cyl(3);
-				double krGuess = 0.0;
-				k_cyl(0) = std::complex<double> (krGuess,0.0);
-				k_cyl(1) = std::complex<double> (kp,0.0);
-				k_cyl(2) = std::complex<double> (kz,0.0);
+				arma::colvec b_rtz = arma::zeros<arma::colvec>(3);
+				b_rtz(0) = 0;
+				b_rtz(1) = _bMag / _bMag;
+				b_rtz(2) = 0;
 
-				std::vector<float> bu_cyl;
-				bu_cyl.resize(3);
-				bu_cyl[0] = 0;
-				bu_cyl[1] = _bMag / _bMag;
-				bu_cyl[2] = 0;
+				std::cout<<"Initializing rotation matricies ..."<<std::endl;
+				RotationMatrix rot(b_rtz,k_rtz);
 
-				epsilon1.rotateEpsilon(bu_cyl);
-				epsilon1.coldRoots(_omega,kp,kz);
+				arma::cx_colvec k_abp = rot.rtz2abp * k_rtz;
 
-				dielectric epsilonHot(AllSpeciesHot,_omega,3,k_cyl,bu_cyl);
+				std::cout<<"Initializing cold dielectric in stx frame ..."<<std::endl;
+				dielectric epsilonCold(stix);
+				epsilonCold.epsilon.print("Cold dielectric stx: ");
 
-				epsilon1.stix.print("Cold dielectric: ");
+				epsilonCold.rotate(rot.stx2abp);
+				epsilonCold.epsilon.print("Cold dielectric abp: ");
+
+				epsilonCold.rotate(rot.abp2rtz);
+				epsilonCold.epsilon.print("Cold dielectric rtz: ");
+
+				epsilonCold.coldRoots(_omega,kp,kz);
+
+				dielectric epsilonHot(AllSpeciesHot,_omega,3,k_abp);
+				epsilonHot.epsilon.print("Hot dielectric abp: ");
+
 
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
 				a_model->setData(i, 0, x[i]);
 
-				a_model->setData(i, 1, std::real(epsilon1.roots[0]));
-		  		a_model->setData(i, 2, std::real(epsilon1.roots[1]));
-				a_model->setData(i, 3, std::real(epsilon1.roots[2]));
-		  		a_model->setData(i, 4, std::real(epsilon1.roots[3]));
+				a_model->setData(i, 1, std::real(epsilonCold.roots[0]));
+		  		a_model->setData(i, 2, std::real(epsilonCold.roots[1]));
+				a_model->setData(i, 3, std::real(epsilonCold.roots[2]));
+		  		a_model->setData(i, 4, std::real(epsilonCold.roots[3]));
 
-				a_model->setData(i, 5, std::imag(epsilon1.roots[0]));
-		  		a_model->setData(i, 6, std::imag(epsilon1.roots[1]));
-				a_model->setData(i, 7, std::imag(epsilon1.roots[2]));
-		  		a_model->setData(i, 8, std::imag(epsilon1.roots[3]));
+				a_model->setData(i, 5, std::imag(epsilonCold.roots[0]));
+		  		a_model->setData(i, 6, std::imag(epsilonCold.roots[1]));
+				a_model->setData(i, 7, std::imag(epsilonCold.roots[2]));
+		  		a_model->setData(i, 8, std::imag(epsilonCold.roots[3]));
 
-				std::cout << "a value 1: " << std::real(epsilon1.roots[0]) << std::endl;
-				std::cout << "a value 2: " << std::real(epsilon1.roots[1]) << std::endl;
-				std::cout << "a value 3: " << std::real(epsilon1.roots[2]) << std::endl;
-				std::cout << "a value 4: " << std::real(epsilon1.roots[3]) << std::endl;
+				std::cout << "a value 1: " << std::real(epsilonCold.roots[0]) << std::endl;
+				std::cout << "a value 2: " << std::real(epsilonCold.roots[1]) << std::endl;
+				std::cout << "a value 3: " << std::real(epsilonCold.roots[2]) << std::endl;
+				std::cout << "a value 4: " << std::real(epsilonCold.roots[3]) << std::endl;
 
 				//}
 
