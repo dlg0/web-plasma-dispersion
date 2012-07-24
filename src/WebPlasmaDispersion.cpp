@@ -23,6 +23,8 @@
 #include "dielectric.hpp"
 #include <armadillo>
 #include "rotation.hpp"
+#include <o2scl/poly.h>
+
 
 class IonSpec
 {
@@ -103,12 +105,12 @@ class DispersionApp : public Wt::WApplication
 			Wt::WLineEdit *nX_LineEdit;
 
 			// Magnetic field scan
-			float r0, b0, rMin, rMax, kPar, kp, kz, yRangeMin, yRangeMax;
+			float r0, b0, rMin, rMax, kPar, kt, kz, yRangeMin, yRangeMax;
 			double Temp_eV;
 			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text,
-					*kp_Text, *kz_Text, *Temp_eV_Text;
+					*kt_Text, *kz_Text, *Temp_eV_Text;
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
-					*kPar_LineEdit, *kz_LineEdit, *kp_LineEdit, *Temp_eV_LineEdit;
+					*kPar_LineEdit, *kz_LineEdit, *kt_LineEdit, *Temp_eV_LineEdit;
 
 			// Plot Y-Range controllers
 			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
@@ -283,8 +285,8 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			kPar_LineEdit = new Wt::WLineEdit("0.1",West_Container);
 			new Wt::WBreak(West_Container);
 
-			kp_Text = new Wt::WText("kphi",West_Container);
-			kp_LineEdit = new Wt::WLineEdit("10",West_Container);
+			kt_Text = new Wt::WText("kphi",West_Container);
+			kt_LineEdit = new Wt::WLineEdit("10",West_Container);
 			new Wt::WBreak(West_Container);
 
 			kz_Text = new Wt::WText("kz",West_Container);
@@ -516,6 +518,89 @@ void DispersionApp::SetYRange()
 		}
 }
 
+std::vector<std::complex<double> > coldRoots( 
+				double w, std::complex<double> kt, std::complex<double> kz, arma::cx_mat _epsilon)
+{
+
+		// see rsfxc_1D.nb for the derivation of these polynomial coeffs.
+
+		std::complex<double> k4 = pow(w,2)/pow(_c,2) * _epsilon(0,0);
+
+		std::complex<double> k3 = pow(w,2)/pow(_c,2) 
+				* ( kt * ( _epsilon(0,1) + _epsilon(1,0) ) 
+						+ kz * ( _epsilon(0,2) + _epsilon(2,0) ) );
+
+		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kt,2) * ( _epsilon(0,0) + _epsilon(1,1) ) 
+						+ pow(_c,2) * kz * kt * ( _epsilon(1,2) + _epsilon(2,1) ) 
+						+ pow(_c,2) * pow(kz,2) * ( _epsilon(0,0) + _epsilon(2,2) ) 
+						+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,0) 
+										+ _epsilon(0,2) * _epsilon(2,0)
+										- _epsilon(0,0) * ( _epsilon(1,1) + _epsilon(2,2) ) ) );
+
+		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(kz,2) * kt * ( _epsilon(0,1) + _epsilon(1,0) )
+						+ pow(_c,2) * pow(kz,3) * ( _epsilon(0,2) + _epsilon(2,0) )
+						+ kz * ( pow(_c,2) * pow(kt,2) * ( _epsilon(0,2) + _epsilon(2,0) )
+							+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,2) 
+										- _epsilon(1,1) * ( _epsilon(0,2) + _epsilon(2,0) )
+										+ _epsilon(1,0) * _epsilon(2,1) ) ) 
+						+ kt * ( pow(w,2) * ( _epsilon(1,2) * _epsilon(2,0)
+												+ _epsilon(0,2) * _epsilon(2,1) )
+									+ ( _epsilon(0,1) + _epsilon(1,0) ) 
+										* ( pow(_c,2) * pow(kt,2) - pow(w,2) * _epsilon(2,2) ) ) );
+		
+		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow(kt,4) * _epsilon(1,1) 
+							+ pow(_c,4) * kz * pow(kt,3) * ( _epsilon(1,2) + _epsilon(2,1) ) 
+							+ pow(_c,2) * kz * kt 
+                                * ( pow(_c,2) * pow(kz,2) * ( _epsilon(1,2) + _epsilon(2,1) ) 
+									+ pow(w,2) * ( _epsilon(0,2) * _epsilon(1,0) 
+													+ _epsilon(0,1) * _epsilon(2,0) 
+													- _epsilon(0,0) * 
+														( _epsilon(1,2) + _epsilon(2,1) ) ) ) 
+							+ pow(_c,4) * pow(kz,4) * _epsilon(2,2) 
+							+ pow(_c,2) * pow(w,2) * pow(kz,2) 
+								* ( _epsilon(0,2) * _epsilon(2,0) 
+									+ _epsilon(1,2) * _epsilon(2,1) 
+									- ( _epsilon(0,0) + _epsilon(1,1) ) * _epsilon(2,2) ) 
+							+pow(w,4) * ( _epsilon(0,2) * ( -_epsilon(1,1) * _epsilon(2,0) 
+															+ _epsilon(1,0) * _epsilon(2,1) ) 
+								+ _epsilon(0,1) * ( _epsilon(1,2) * _epsilon(2,0) 
+													- _epsilon(1,0) * _epsilon(2,2) ) 
+								+ _epsilon(0,0) * ( -_epsilon(1,2) * _epsilon(2,1) 
+													+ _epsilon(1,1) * _epsilon(2,2) ) ) 
+							+ pow(_c,2) * pow(kt,2) * ( pow(_c,2) * pow(kz,2) * 
+								( _epsilon(1,1) + _epsilon(2,2) ) 
+								+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,0) 
+											+ _epsilon(1,2) * _epsilon(2,1) 
+											- _epsilon(1,1) * 
+												( _epsilon(0,0) + _epsilon(2,2) ) ) ) );
+#ifdef _DEBUG
+		std::cout << "Coeffs: " << std::endl;
+		std::cout << "k0: " << k0 << std::endl;
+		std::cout << "k1: " << k1 << std::endl;
+		std::cout << "k2: " << k2 << std::endl;
+		std::cout << "k3: " << k3 << std::endl;
+		std::cout << "k4: " << k4 << std::endl;
+#endif
+		o2scl::simple_quartic_complex quart;
+		std::vector<std::complex<double> > roots;
+		roots.clear();
+		roots.resize(4);
+		std::complex<double> rootsTmp[4];
+		quart.solve_c(k4,k3,k2,k1,k0,rootsTmp[0],rootsTmp[1],rootsTmp[2],rootsTmp[3]);
+
+		for(int i=0;i<4;i++)
+		{
+				roots[i] = rootsTmp[i];
+#ifdef _DEBUG
+				std::cout << "Root: " << roots[i] << std::endl;
+#endif
+		}
+
+		//std::sort(rootsVec.begin(),rootsVec.end());
+
+		return(roots);
+}
+
 void DispersionApp::UpdateCalculation()
 {
 			UpdateIonSpecies();
@@ -587,7 +672,7 @@ void DispersionApp::UpdateCalculation()
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
 
 				kPar = boost::lexical_cast<double>(kPar_LineEdit->text().narrow());
-				kp = boost::lexical_cast<double>(kp_LineEdit->text().narrow());
+				kt = boost::lexical_cast<double>(kt_LineEdit->text().narrow());
 				kz = boost::lexical_cast<double>(kz_LineEdit->text().narrow());
 
 				double _freq = boost::lexical_cast<double>(Freq_Hz_LineEdit->text().narrow());
@@ -602,56 +687,90 @@ void DispersionApp::UpdateCalculation()
 
 				tmp.push_back(stix.R);
 
-				arma::cx_colvec k_rtz(3);
-				double krGuess = 5.0;
-				k_rtz(0) = std::complex<double> (krGuess,0.0);
-				k_rtz(1) = std::complex<double> (kp,0.0);
-				k_rtz(2) = std::complex<double> (kz,0.0);
-
 				arma::colvec b_rtz = arma::zeros<arma::colvec>(3);
 				b_rtz(0) = 0;
 				b_rtz(1) = _bMag / _bMag;
 				b_rtz(2) = 0;
 
 				std::cout<<"Initializing rotation matricies ..."<<std::endl;
-				RotationMatrix rot(b_rtz,k_rtz);
+				RotationMatrix rot(b_rtz);//,k_rtz);
 
-				arma::cx_colvec k_abp = rot.rtz2abp * k_rtz;
 
 				std::cout<<"Initializing cold dielectric in stx frame ..."<<std::endl;
 				dielectric epsilonCold(stix);
 				epsilonCold.epsilon.print("Cold dielectric stx: ");
 
-				epsilonCold.rotate(rot.stx2abp);
-				epsilonCold.epsilon.print("Cold dielectric abp: ");
+				// I think these rotations need to change, i.e., need
+				// to make it go abp->stx->rtz, such that the cold rotaion
+				// does NOT depend on k.
+
+				//epsilonCold.rotate(rot.stx2abp);
+				//epsilonCold.epsilon.print("Cold dielectric abp: ");
 
 				epsilonCold.rotate(rot.abp2rtz);
 				epsilonCold.epsilon.print("Cold dielectric rtz: ");
 
-				epsilonCold.coldRoots(_omega,kp,kz);
+				std::complex<double> kt_(kt,0.0);
+				std::complex<double> kz_(kz,0.0);
 
-				dielectric epsilonHot(AllSpeciesHot,_omega,3,k_abp);
-				epsilonHot.epsilon.print("Hot dielectric abp: ");
+				std::vector<std::complex<double> > ColdRoots = coldRoots(_omega,kt_,kz_,epsilonCold.epsilon);
+				std::vector<std::complex<double> > HotRoots = ColdRoots;
+
+				// starting from each cold root
+				for(int t=0;t<1;t++)
+				{
+					arma::cx_colvec k_rtz(3);
+					std::complex<double> krGuess = ColdRoots[t];
+
+					std::cout<<"krGuess: "<<krGuess<<std::endl;
+					// iterate to the hot root
+					for(int it=0;it<1;it++)
+					{
+						k_rtz(0) = krGuess;
+						k_rtz(1) = kt_;
+						k_rtz(2) = kz_;
+
+						arma::cx_colvec k_abp = rot.rtz2abp * k_rtz;
+						rot.rtz2abp.print("rtz2abp: ");
+						k_rtz.print("k_rtz: ");
+						k_abp.print("k_abp: ");
+
+						dielectric epsilonHot(AllSpeciesHot,_omega,3,k_abp);
+						//epsilonHot.epsilon.print("Hot dielectric abp: ");
+
+						epsilonHot.rotate(rot.abp2rtz);
+						epsilonHot.epsilon.print("Hot dielectric rtz: ");
+						epsilonCold.epsilon.print("Cold dielectric rtz: ");
+
+						std::vector<std::complex<double> > HotRootsTmp = coldRoots(_omega,kt_,kz_,epsilonHot.epsilon);
+						std::cout<<"krIter: "<<HotRootsTmp[0]<<"   "<<ColdRoots[0]<<std::endl;
+						std::cout<<"krIter: "<<HotRootsTmp[1]<<"   "<<ColdRoots[1]<<std::endl;
+						std::cout<<"krIter: "<<HotRootsTmp[2]<<"   "<<ColdRoots[2]<<std::endl;
+						std::cout<<"krIter: "<<HotRootsTmp[3]<<"   "<<ColdRoots[3]<<std::endl;
+						arma::cx_colvec hotRoots = arma::zeros<arma::cx_colvec>(4);
+						hotRoots(0) = HotRootsTmp[0];
+						hotRoots(1) = HotRootsTmp[1];
+						hotRoots(2) = HotRootsTmp[2];
+						hotRoots(3) = HotRootsTmp[3];
+						arma::colvec diff = arma::abs(hotRoots-krGuess);
+						diff.print("diff: ");
+					}
+				}
 
 
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
 				a_model->setData(i, 0, x[i]);
 
-				a_model->setData(i, 1, std::real(epsilonCold.roots[0]));
-		  		a_model->setData(i, 2, std::real(epsilonCold.roots[1]));
-				a_model->setData(i, 3, std::real(epsilonCold.roots[2]));
-		  		a_model->setData(i, 4, std::real(epsilonCold.roots[3]));
+				a_model->setData(i, 1, std::real(ColdRoots[0]));
+		  		a_model->setData(i, 2, std::real(ColdRoots[1]));
+				a_model->setData(i, 3, std::real(ColdRoots[2]));
+		  		a_model->setData(i, 4, std::real(ColdRoots[3]));
 
-				a_model->setData(i, 5, std::imag(epsilonCold.roots[0]));
-		  		a_model->setData(i, 6, std::imag(epsilonCold.roots[1]));
-				a_model->setData(i, 7, std::imag(epsilonCold.roots[2]));
-		  		a_model->setData(i, 8, std::imag(epsilonCold.roots[3]));
-
-				std::cout << "a value 1: " << std::real(epsilonCold.roots[0]) << std::endl;
-				std::cout << "a value 2: " << std::real(epsilonCold.roots[1]) << std::endl;
-				std::cout << "a value 3: " << std::real(epsilonCold.roots[2]) << std::endl;
-				std::cout << "a value 4: " << std::real(epsilonCold.roots[3]) << std::endl;
+				a_model->setData(i, 5, std::imag(ColdRoots[0]));
+		  		a_model->setData(i, 6, std::imag(ColdRoots[1]));
+				a_model->setData(i, 7, std::imag(ColdRoots[2]));
+		  		a_model->setData(i, 8, std::imag(ColdRoots[3]));
 
 				//}
 
@@ -665,6 +784,8 @@ void DispersionApp::UpdateCalculation()
 			}
 
 }
+
+
 
 Wt::WApplication *createApplication(const Wt::WEnvironment& env)
 {

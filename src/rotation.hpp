@@ -6,7 +6,7 @@
 class RotationMatrix
 {
 		public:
-				RotationMatrix(arma::colvec _b_rtz, arma::cx_colvec _k_rtz);
+				RotationMatrix(arma::colvec _b_rtz);//, arma::cx_colvec _k_rtz);
 		private:
 		public:
 			arma::mat rtz2abp, abp2rtz;

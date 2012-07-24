@@ -3,7 +3,7 @@
 #include <vector>
 #include <math.h>
 
-RotationMatrix::RotationMatrix(arma::colvec _b_rtz, arma::cx_colvec _k_rtz )
+RotationMatrix::RotationMatrix(arma::colvec _b_rtz)//, arma::cx_colvec _k_rtz )
 {
 
 	// Rotation from rtz to abp
@@ -59,32 +59,32 @@ RotationMatrix::RotationMatrix(arma::colvec _b_rtz, arma::cx_colvec _k_rtz )
 		abp2rtz = arma::inv(rtz2abp);
 
 
-	// Now initialize the rotation matrix from stx to abp
-	// --------------------------------------------------
-	
-		arma::cx_colvec k_abp = rtz2abp * _k_rtz; // get k in alp,bet,prl (_abp)
+	//// Now initialize the rotation matrix from stx to abp
+	//// --------------------------------------------------
+	//
+	//	arma::cx_colvec k_abp = rtz2abp * _k_rtz; // get k in alp,bet,prl (_abp)
 
-		stx2abp = arma::zeros<arma::cx_mat>(3,3);
+	//	stx2abp = arma::zeros<arma::cx_mat>(3,3);
 
-		std::complex<double> kPerp = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
-		std::complex<double> sinPsi = k_abp(0)/kPerp; 
-		std::complex<double> cosPsi = k_abp(1)/kPerp; 
+	//	std::complex<double> kPerp = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
+	//	std::complex<double> sinPsi = k_abp(0)/kPerp; 
+	//	std::complex<double> cosPsi = k_abp(1)/kPerp; 
 
-		stx2abp(0,0) = cosPsi;
-		stx2abp(0,1) = -sinPsi;
-		stx2abp(0,2) = 0;
+	//	stx2abp(0,0) = cosPsi;
+	//	stx2abp(0,1) = -sinPsi;
+	//	stx2abp(0,2) = 0;
 
-		stx2abp(1,0) = sinPsi;
-		stx2abp(1,1) = cosPsi;
-		stx2abp(1,2) = 0;
+	//	stx2abp(1,0) = sinPsi;
+	//	stx2abp(1,1) = cosPsi;
+	//	stx2abp(1,2) = 0;
 
-		stx2abp(2,0) = 0;
-		stx2abp(2,1) = 0;
-		stx2abp(2,2) = 1;
+	//	stx2abp(2,0) = 0;
+	//	stx2abp(2,1) = 0;
+	//	stx2abp(2,2) = 1;
 
-		abp2stx = arma::zeros<arma::cx_mat>(3,3);
-		abp2stx = arma::inv(stx2abp);
+	//	abp2stx = arma::zeros<arma::cx_mat>(3,3);
+	//	abp2stx = arma::inv(stx2abp);
 
-		stx2abp.print("Stx2ABP: ");
+	//	stx2abp.print("Stx2ABP: ");
 }
 

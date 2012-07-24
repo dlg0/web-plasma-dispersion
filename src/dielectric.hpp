@@ -21,7 +21,7 @@ class dielectric
 				void rotate(arma::mat _rot);
 				void rotate(arma::cx_mat _rot);
 
-				void coldRoots(double, double, double);
+				//void coldRoots(double, double, double);
 };
 
 #endif
