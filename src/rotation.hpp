@@ -3,14 +3,14 @@
 
 #include <armadillo>
 
-class RotationMatrix
-{
+class RotationMatrix { 
 		public:
-				RotationMatrix(arma::colvec _b_rtz);//, arma::cx_colvec _k_rtz);
+				RotationMatrix();
+				RotationMatrix(arma::colvec _b_xyz);
 		private:
 		public:
-			arma::mat rtz2abp, abp2rtz;
-			arma::cx_mat stx2abp, abp2stx;
+			arma::mat xyz2abp, abp2xyz;
+			//arma::cx_mat stx2abp, abp2stx;
 };
 
 #endif

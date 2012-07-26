@@ -10,7 +10,7 @@ MODULES := src include
 
 CFLAGS := 
 FFLAGS := -fdefault-real-8 -fbounds-check -fbacktrace
-CPPFLAGS := -g -pg 
+CPPFLAGS := -g -pg #-D_DEBUG 
 
 INCLUDEFLAGS := 
 LIBS := 

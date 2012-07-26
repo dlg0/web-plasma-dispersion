@@ -2,6 +2,7 @@
 #define ZCIRCLE_HPP_
 
 #include "dielectric.hpp"
+#include <iostream>
 
   // Local functions used by Zcircle()
   void Set_to_zero(double *x,double *y) {
@@ -61,7 +62,10 @@ e50:for (i=1; i<m+1; i++) {
   for (i=1; i<m+1; i++) {
     xx=X[i] ; yy=Y[i];
     //Eval(xx,yy,&uu,&vv);
-	epsilon.determinant(xx,yy,&uu,&vv);
+	//std::cout<<"Calling epsilon.determinant ..."<<std::endl;
+	std::cout<<k<<"  "<<i<<" A kx_re: "<<xx<<" kx_im: "<<yy<<std::endl;
+	epsilon.determinant(xx,yy,uu,vv);
+	std::cout<<"B det_re: "<<uu<<" det_im: "<<vv<<std::endl;
     U[i]=uu;
     V[i]=vv;
   }
