@@ -24,7 +24,7 @@
 #include <armadillo>
 #include "rotation.hpp"
 #include <o2scl/poly.h>
-#include "zcircle.hpp"
+//#include "zcircle.hpp"
 
 class IonSpec
 {
@@ -519,7 +519,7 @@ void DispersionApp::SetYRange()
 }
 
 std::vector<std::complex<double> > coldRoots( 
-				double w, std::complex<double> kz, std::complex<double> ky, arma::cx_mat _epsilon)
+				double w, std::complex<double> ky, std::complex<double> kz, arma::cx_mat _epsilon)
 {
 
 		// see rsfxc_1D.nb for the derivation of these polynomial coeffs.
@@ -713,24 +713,41 @@ void DispersionApp::UpdateCalculation()
 				std::complex<double> kz_(kz,0.0);
 
 				std::vector<std::complex<double> > ColdRoots = coldRoots(_omega,ky_,kz_,epsilonCold.epsilon);
+				for(int c=0;c<4;c++)
+				{
+						std::cout<<"cold roots: "<<ColdRoots[c]<<std::endl;
+				}
 				//std::vector<std::complex<double> > HotRoots = ColdRoots;
 				
 	
 				dielectric epsilonHot(AllSpeciesHot,_omega,3,ky,kz,rot);
 
 				std::complex<double> kx_guess;
-				kx_guess = std::complex<double>(6.0,0.0);
+				kx_guess = std::complex<double>(9.77,0.0);
 
 				epsilonHot.populateSwansonKs(kx_guess);
 				epsilonHot.rotate(rot.abp2xyz);
 				epsilonHot.epsilon.print("Hot dielectric xyz: ");
 
-				double w=25, e=0.9;
-				int n=5, m=6;
-				double root_re, root_im;
+				// Just map the freaking space out and contour it. Then just look at a single 
+				// point at a time in the complex k space for zeros. 
 
-				std::cout<<"Calling Zcircle ..."<<std::endl;
-				Zcircle(w,e,std::real(kx_guess),std::imag(kx_guess),n,m,root_re,root_im,epsilonHot);				
+				std::complex<double> det;
+				for(double kx_re=-100;kx_re<=100;kx_re++)
+				{
+					for(double kx_im=-100;kx_im<=100;kx_im++)
+					{
+						std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
+						det = epsilonHot.determinant(kxIn);
+					}
+				}
+
+				//double w=0.2, e=0.9;
+				//int n=5, m=6;
+				//double root_re, root_im;
+
+				//std::cout<<"Calling Zcircle ..."<<std::endl;
+				//Zcircle(w,e,std::real(kx_guess),std::imag(kx_guess),n,m,root_re,root_im,epsilonHot);				
 
 				//// starting from each cold root
 				//for(int t=0;t<4;t++)

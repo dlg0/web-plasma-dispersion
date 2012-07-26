@@ -31,7 +31,8 @@ class dielectric
 
 				void rotate(arma::mat _rot);
 				void rotate(arma::cx_mat _rot);
-				void determinant(double kxIn_re, double kxIn_im, double &kxOu_re, double &kxOu_im);
+				//void determinant(double kxIn_re, double kxIn_im, double *kxOu_re, double *kxOu_im);
+				std::complex<double> determinant(std::complex<double> _kx);
 				void populateSwansonKs(std::complex<double> _kx);
 				//void coldRoots(double, double, double);
 };

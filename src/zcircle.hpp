@@ -58,48 +58,49 @@ e50:for (i=1; i<m+1; i++) {
     X[i]=w*cos(a*(i-1))+x0;
     Y[i]=w*sin(a*(i-1))+yy0;
 	}
-  // Determine the corresponding U[i] and V[i]
+   std::cout<<"Determine the corresponding U[i] and V[i]"<<std::endl;
   for (i=1; i<m+1; i++) {
     xx=X[i] ; yy=Y[i];
     //Eval(xx,yy,&uu,&vv);
-	//std::cout<<"Calling epsilon.determinant ..."<<std::endl;
+	std::cout<<"Calling epsilon.determinant ..."<<std::endl;
 	std::cout<<k<<"  "<<i<<" A kx_re: "<<xx<<" kx_im: "<<yy<<std::endl;
-	epsilon.determinant(xx,yy,uu,vv);
+	epsilon.determinant(xx,yy,&uu,&vv);
 	std::cout<<"B det_re: "<<uu<<" det_im: "<<vv<<std::endl;
     U[i]=uu;
     V[i]=vv;
   }
-  // Find the position at which uu changes sign
+   std::cout<<"Find the position at which uu changes sign"<<std::endl;
   // in the counterclockwise direction
   i=1; uu=U[i];
 e100: Auxilliary(m,&i,&j);
   if (uu*U[i]<0) goto e200;
-  // Guard against infinite loop
+   std::cout<<"Guard against infinite loop B"<<std::endl;
+   std::cout<<uu*U[i]<<std::endl;
   if (i==1) Set_to_zero(&xx,&yy);
   goto e100;
-  // Transition found
+   std::cout<<"Transition found"<<std::endl;
 e200: xm1=i;
-  // Search for the other transition, starting
+   std::cout<<"Search for the other transition, starting"<<std::endl;
   // on the other side of the circle
   i=(int) xm1+m/2;
   if (i>m) i=i-m;
   j=i;
   uu=U[i];
-  // Flip directions alternately
+   std::cout<<"Flip directions alternately"<<std::endl;
 e250: Auxilliary(m,&i,&j);
   if (uu*U[i]<0) goto e300;
   if (uu*U[j]<0) goto e310;
-  // Guard against infinite loop
+   std::cout<<"Guard against infinite loop C"<<std::endl;
   if (i==xm1+(xm2/2)) Set_to_zero(&xx,&yy);
   if (j==xm1+(xm2/2)) Set_to_zero(&xx,&yy);
   goto e250;
-  // Transition found
+   std::cout<<"Transition found"<<std::endl;
 e300: m3=i;
   goto e320;
-  // Transition found
+   std::cout<<"Transition found"<<std::endl;
 e310: if (j==m) j=0;
   m3=j+1;
-  // xm1 and m3 have been determined, now for xm2 and m4
+   std::cout<<"xm1 and m3 have been determined, now for xm2 and m4"<<std::endl;
   // now for the vv transitions                         
 e320: i=(int) xm1+m/4;
   if (i>m) i=i-m;
@@ -107,16 +108,16 @@ e320: i=(int) xm1+m/4;
 e330: Auxilliary(m,&i,&j);
   if (vv*V[i]<0) goto e340;
   if (vv*V[j]<0) goto e350;
-  // Guard against infinite loop
+   std::cout<<"Guard against infinite loop A"<<std::endl;
   if (i==xm1+m/4) Set_to_zero(&xx,&yy);
   if (j==xm1+m/4) Set_to_zero(&xx,&yy);
   goto e330;
-  // xm2 has been found
+   std::cout<<"xm2 has been found"<<std::endl;
 e340: xm2=i;
   goto e400;
 e350: if (j==m) j=0;
   xm2=j+1;
-  // xm2 has been found, now for m4
+   std::cout<<"xm2 has been found, now for m4"<<std::endl;
 e400: i=(int) xm2+m/2;
   if (i>m) i=i-m;
   j=i; vv=V[i];
@@ -131,7 +132,7 @@ e460: m4=i;
   goto e500;
 e470: if (j==m) j=0;
   m4=j+1;
-  // All the intersections have been determine
+   std::cout<<"All the intersections have been determinep"<<std::endl;
   // Interpolate to find the four (x,y) coordinates
 e500: i=(int) xm1;
   Interpolation(m,i,j,X,Y,U,V,&xx,&yy);
@@ -142,7 +143,7 @@ e500: i=(int) xm1;
   x3=xx ; y3=yy ; i=m4;
   Interpolation(m,i,j,X,Y,U,V,&xx,&yy);
   x4=xx ; y4=yy;
-  // Calculate the intersection of the lines
+   std::cout<<"Calculate the intersection of the lines"<<std::endl;
   // Guard against a divide by zero
   if (x1!=x3) goto e510;
   xx=x1; yy=(y1+y3)/2.0;
@@ -156,7 +157,7 @@ e521: b1=y1-xm1*x1;
   b2=y2-xm2*x2;
   xx=-(b1-b2)/(xm1-xm2);
   yy=(xm1*b2+xm2*b1)/(xm1+xm2);
-  // is another iteration in order ?
+   std::cout<<"is another iteration in order ?"<<std::endl;
   if (k==n) return;
   x0=xx ; yy0=yy ; k=k+1 ; w=w*e;
   goto e50;
