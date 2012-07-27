@@ -35,6 +35,11 @@ MATPACKDIR:=/home/dg6/code/matpack/matpack
 INCLUDEFLAGS+= -I${MATPACKDIR}/include
 LIBS+= ${MATPACKDIR}/matpack.a
 
+# gnuplot-iostream
+GNUPLOTIOSTREAM:=/home/dg6/code/gnuplot-iostream
+INCLUDEFLAGS+=-I${GNUPLOTIOSTREAM} -I/usr/lib64/blitz/include
+LIBS+=-lboost_iostreams
+
 LINK := $(CPP) ${CPPFLAGS} obj/bessel.o -lgfortran -lquadmath
 
 # You shouldn't have to go below here

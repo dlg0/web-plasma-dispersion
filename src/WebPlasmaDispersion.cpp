@@ -25,6 +25,13 @@
 #include "rotation.hpp"
 #include <o2scl/poly.h>
 //#include "zcircle.hpp"
+#define GNUPLOT_ENABLE_BLITZ
+#include "gnuplot-iostream.h"
+//#include <boost/iostreams/device/file_descriptor.hpp>
+#include <blitz/array.h>
+#include <map>
+#include <cstdio>
+
 
 class IonSpec
 {
@@ -372,7 +379,7 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 
 			b_CartesianChart->addSeries(*b_series);
 
-			UpdateCalculation();
+			//UpdateCalculation();
 }
 
 void DispersionApp::AddChart (std::string title, std::string xTitle, std::string yTitle, 
@@ -717,29 +724,57 @@ void DispersionApp::UpdateCalculation()
 				{
 						std::cout<<"cold roots: "<<ColdRoots[c]<<std::endl;
 				}
-				//std::vector<std::complex<double> > HotRoots = ColdRoots;
-				
 	
 				dielectric epsilonHot(AllSpeciesHot,_omega,3,ky,kz,rot);
 
-				std::complex<double> kx_guess;
-				kx_guess = std::complex<double>(9.77,0.0);
+				//std::complex<double> kx_guess;
+				//kx_guess = std::complex<double>(9.77,0.0);
 
-				epsilonHot.populateSwansonKs(kx_guess);
-				epsilonHot.rotate(rot.abp2xyz);
-				epsilonHot.epsilon.print("Hot dielectric xyz: ");
+				//epsilonHot.populateSwansonKs(kx_guess);
+				//epsilonHot.rotate(rot.abp2xyz);
+				//epsilonHot.epsilon.print("Hot dielectric xyz: ");
 
-				// Just map the freaking space out and contour it. Then just look at a single 
-				// point at a time in the complex k space for zeros. 
-
-				std::complex<double> det;
-				for(double kx_re=-100;kx_re<=100;kx_re++)
+				if(i==nX-1)
 				{
-					for(double kx_im=-100;kx_im<=100;kx_im++)
+		
+					std::cout<<"i: "<<i<<std::endl;
+
+					// Just map the freaking space out and contour it. Then just look at a single 
+					// point at a time in the complex k space for zeros. 
+
+					int _nX = 400;
+					int _nY = 500;
+					double kx_reMin = -20;
+					double kx_reMax = 20;
+					double kx_imMin = -900;
+					double kx_imMax = 900;
+
+					blitz::Array<blitz::TinyVector<double,3>, 2> arr(_nX,_nY);
+
+					for(int ii=0;ii<_nX;ii++)
 					{
-						std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
-						det = epsilonHot.determinant(kxIn);
+						for(int jj=0;jj<_nY;jj++)
+						{
+							double kx_re = (kx_reMax-kx_reMin)/(_nX-1)*ii+kx_reMin;
+							double kx_im = (kx_imMax-kx_imMin)/(_nY-1)*jj+kx_imMin;
+
+							std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
+							std::complex<double> det = epsilonHot.determinant(kxIn);
+							arr(ii,jj)[0] = kx_re;
+							arr(ii,jj)[1] = kx_im;
+							arr(ii,jj)[2] = log10(abs(det));
+							//std::cout<<abs(det)<<std::endl;
+							//arr(ii,jj)[3] = kx_re*kx_im;//abs(det);
+						}
 					}
+
+					Gnuplot gp("gnuplot -persist");
+					gp<<"set contour base"<<std::endl;
+					gp<<"set cntrparam levels auto 20"<<std::endl;
+					gp<<"unset surface; set view map"<<std::endl;
+					gp<<"splot '-' with lines"<<std::endl;
+					gp.send(arr);
+
 				}
 
 				//double w=0.2, e=0.9;
