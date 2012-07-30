@@ -31,7 +31,7 @@
 #include <blitz/array.h>
 #include <map>
 #include <cstdio>
-
+#include <assert.h>
 
 class IonSpec
 {
@@ -44,7 +44,8 @@ class IonSpec
 		private:
 
 		public:
-		Wt::WLineEdit *SpecAMU_LineEdit, *SpecZ_LineEdit;
+		Wt::WLineEdit *SpecAMU_LineEdit, *SpecZ_LineEdit, *SpecT_eV_LineEdit, 
+				*SpecDensity_m3_LineEdit, *SpecHarmonicN_LineEdit;
 		Wt::WBreak *SpecBreak;
 		Wt::WText *SpecText;
 		int SpecNo;
@@ -54,7 +55,7 @@ IonSpec::IonSpec(int SpecNoIn, Wt::WGroupBox *IonSpecies_Container )
 {
 	SpecNo = SpecNoIn;
 	std::stringstream TmpStr;
-	TmpStr << "Ion Species " << SpecNoIn << " (AMU, Z)";
+	TmpStr << "Ion Species " << SpecNoIn << " (AMU, Z, T [eV], Density [m^-3])";
 	Wt::WString TmpStrWt(TmpStr.str());
 	SpecText = new Wt::WText(TmpStrWt,IonSpecies_Container);
 	SpecText->setHidden(1);
@@ -62,8 +63,14 @@ IonSpec::IonSpec(int SpecNoIn, Wt::WGroupBox *IonSpecies_Container )
 	SpecAMU_LineEdit->setHidden(1);
 	SpecZ_LineEdit = new Wt::WLineEdit("1",IonSpecies_Container);
 	SpecZ_LineEdit->setHidden(1);
+	SpecT_eV_LineEdit = new Wt::WLineEdit("0.01",IonSpecies_Container);
+	SpecT_eV_LineEdit->setHidden(1);
+	SpecDensity_m3_LineEdit = new Wt::WLineEdit("1e19",IonSpecies_Container);
+	SpecDensity_m3_LineEdit->setHidden(1);
+	SpecHarmonicN_LineEdit = new Wt::WLineEdit("0",IonSpecies_Container);
+	SpecHarmonicN_LineEdit->setHidden(1);
 	SpecBreak = new Wt::WBreak(IonSpecies_Container);
-	SpecBreak->setHidden(1);
+SpecBreak->setHidden(1);
 }
 IonSpec::~IonSpec(void)
 {
@@ -73,6 +80,9 @@ void IonSpec::setVisible(void)
 	SpecText->setHidden(0);
 	SpecAMU_LineEdit->setHidden(0);
 	SpecZ_LineEdit->setHidden(0);
+	SpecT_eV_LineEdit->setHidden(0);
+	SpecDensity_m3_LineEdit->setHidden(0);
+	SpecHarmonicN_LineEdit->setHidden(0);
 	SpecBreak->setHidden(0);
 }
 void IonSpec::setHidden(void)
@@ -80,6 +90,9 @@ void IonSpec::setHidden(void)
 	SpecText->setHidden(1);
 	SpecAMU_LineEdit->setHidden(1);
 	SpecZ_LineEdit->setHidden(1);
+	SpecT_eV_LineEdit->setHidden(1);
+	SpecDensity_m3_LineEdit->setHidden(1);
+	SpecHarmonicN_LineEdit->setHidden(1);
 	SpecBreak->setHidden(1);
 }
 
@@ -112,18 +125,19 @@ class DispersionApp : public Wt::WApplication
 			Wt::WLineEdit *nX_LineEdit;
 
 			// Magnetic field scan
-			float r0, b0, rMin, rMax, kPar, ky, kz, yRangeMin, yRangeMax;
-			double Temp_eV;
+			float r0, b0, rMin, rMax, kPar, ky, kz, yRangeMin, yRangeMax, bxFrac, byFrac;
 			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text,
-					*ky_Text, *kz_Text, *Temp_eV_Text;
+					*ky_Text, *kz_Text, *bxFrac_Text, *byFrac_Text;
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
-					*kPar_LineEdit, *kz_LineEdit, *ky_LineEdit, *Temp_eV_LineEdit;
+					*kPar_LineEdit, *kz_LineEdit, *ky_LineEdit, *bxFrac_LineEdit, *byFrac_LineEdit;
 
+			Wt::WLineEdit *electron_AMU_LineEdit, *electron_Z_LineEdit, *electron_T_eV_LineEdit, *electron_Density_m3_LineEdit;
 			// Plot Y-Range controllers
 			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
 			Wt::WLineEdit *yRangeMin_LineEdit, *yRangeMax_LineEdit;
 
-			std::vector <float> x,b;
+			std::vector <float> x;//,b;
+			arma::colvec bx,by,bz,bMag;
 
 			Wt::Chart::WCartesianChart *b_CartesianChart, *a_CartesianChart;
 			Wt::WStandardItemModel *b_model, *a_model;
@@ -300,16 +314,20 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			kz_LineEdit = new Wt::WLineEdit("10",West_Container);
 			new Wt::WBreak(West_Container);
 
-			Temp_eV_Text = new Wt::WText("Temp_eV",West_Container);
-			Temp_eV_LineEdit = new Wt::WLineEdit("0.01",West_Container);
-			new Wt::WBreak(West_Container);
-
 			r0_Text = new Wt::WText("r0",West_Container);
 			r0_LineEdit = new Wt::WLineEdit("2",West_Container);
 			new Wt::WBreak(West_Container);
 
 			b0_Text = new Wt::WText("b0",West_Container);
 			b0_LineEdit = new Wt::WLineEdit("5",West_Container);
+			new Wt::WBreak(West_Container);
+
+			bxFrac_Text = new Wt::WText("bxFrac",West_Container);
+			bxFrac_LineEdit = new Wt::WLineEdit("0.0",West_Container);
+			new Wt::WBreak(West_Container);
+
+			byFrac_Text = new Wt::WText("byFrac",West_Container);
+			byFrac_LineEdit = new Wt::WLineEdit("0.0",West_Container);
 			new Wt::WBreak(West_Container);
 
 			rMin_Text = new Wt::WText("rMin",West_Container);
@@ -323,6 +341,14 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			Update_PushButton->clicked().connect(this, &DispersionApp::UpdateCalculation);
 
 			IonSpecies_Container = new Wt::WGroupBox("Ion Species",root());
+
+			Wt::WText *electronText = new Wt::WText("Electron parameters (AMU, Z, T [eV],Density [m^-3])",IonSpecies_Container);
+			electron_AMU_LineEdit = new Wt::WLineEdit("0.000544617",IonSpecies_Container);
+			electron_Z_LineEdit = new Wt::WLineEdit("-1",IonSpecies_Container);
+			electron_T_eV_LineEdit = new Wt::WLineEdit("0.01",IonSpecies_Container);
+			electron_Density_m3_LineEdit = new Wt::WLineEdit("auto",IonSpecies_Container);
+
+			new Wt::WBreak(IonSpecies_Container);
 
 			Wt::WText *nIonSpecText = new Wt::WText("N Ion Species",IonSpecies_Container);
 			nIonSpecies_ComboBox = new Wt::WComboBox(IonSpecies_Container);
@@ -338,7 +364,6 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 
 			new Wt::WBreak(IonSpecies_Container);
 
-			nSpecies = 0;
 
 			a_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
 			b_CartesianChart = new Wt::Chart::WCartesianChart(Center_Container); 
@@ -379,6 +404,9 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 
 			b_CartesianChart->addSeries(*b_series);
 
+			nSpecies = 0;
+			UpdateIonSpecies();
+			UpdateBField();
 			//UpdateCalculation();
 }
 
@@ -400,9 +428,9 @@ void DispersionApp::AddChart (std::string title, std::string xTitle, std::string
 	_Chart->setType(Wt::Chart::ScatterPlot);
 	//_Chart->setLegendEnabled(true);
 	_Chart->axis(Wt::Chart::XAxis).setLocation(Wt::Chart::ZeroValue);
-	_Chart->resize(900,600);
-	_Chart->setPlotAreaPadding(200,Wt::Left);
-	_Chart->setPlotAreaPadding(80,Wt::Bottom);
+	_Chart->resize(450,300);
+	_Chart->setPlotAreaPadding(100,Wt::Left);
+	_Chart->setPlotAreaPadding(40,Wt::Bottom);
 	_Chart->setLegendLocation(Wt::Chart::LegendOutside,Wt::Top,Wt::AlignRight);
 	_Chart->setTitle(Wt::WString(title));
 
@@ -486,18 +514,36 @@ void DispersionApp::UpdateBField ()
 			rMin = boost::lexical_cast<float>(rMin_LineEdit->text().narrow());
 			rMax = boost::lexical_cast<float>(rMax_LineEdit->text().narrow());
 			b0 = boost::lexical_cast<float>(b0_LineEdit->text().narrow());
+			bxFrac = boost::lexical_cast<float>(bxFrac_LineEdit->text().narrow());
+			byFrac = boost::lexical_cast<float>(byFrac_LineEdit->text().narrow());
+
+			try {
+				bxFrac = boost::lexical_cast<float>(bxFrac_LineEdit->text().narrow());
+				std::cout << "Success: bxFrac_LineEdit read as " << bxFrac << std::endl;
+			} catch(boost::bad_lexical_cast &) {
+				std::cout << "Error: bxFrac_LineEdit could not be read" << std::endl;
+			}
+
 			r0 = boost::lexical_cast<float>(r0_LineEdit->text().narrow());
 
 			x.resize(nX);
-			b.resize(nX);
+			//b.resize(nX);
+			bx.set_size(nX);
+			by.set_size(nX);
+			bz.set_size(nX);
+			bMag.set_size(nX);
 
 			for(int i=0;i<nX;i++)
 			{
 					x[i] = i*(rMax-rMin)/nX+rMin;
-					b[i] = b0*r0/x[i];
-			}
+					//b[i] = b0*r0/x[i];
+					bz(i) = b0*r0/x[i];
+					bx(i) = bxFrac*bz(i);
+					by(i) = byFrac*bz(i);
+					bMag(i) = sqrt(pow(bx(i),2)+pow(by(i),2)+pow(bz(i),2));
 
-			
+					assert(bMag(i)==bMag(i));
+			}
 }
 
 void DispersionApp::SetYRangeManual()
@@ -610,7 +656,7 @@ std::vector<std::complex<double> > coldRoots(
 
 void DispersionApp::UpdateCalculation()
 {
-			UpdateIonSpecies();
+			//UpdateIonSpecies();
 			UpdateBField();
 			// Update number of plot data points
 
@@ -630,11 +676,10 @@ void DispersionApp::UpdateCalculation()
 			for(int i=0;i<nX;i++)
 			{
 
-				float _bMag = b[i];
+				float _bMag = bMag(i);
 				std::vector<PlasmaSpecies> AllSpecies;
 				std::vector<HotPlasmaSpecies> AllSpeciesHot;
 				double _ionDensity = 0.0;
-				Temp_eV = boost::lexical_cast<double>(Temp_eV_LineEdit->text().narrow());
 				//ions
 				for(int s=0;s<nSpecies;s++)
 				{
@@ -654,16 +699,33 @@ void DispersionApp::UpdateCalculation()
 							std::cout << "Error: SpecAMU_LineEdit could not be read" << std::endl;
 						}
 
+						double _T_eV;
+						try {
+					   		_T_eV = boost::lexical_cast<double>(IonSpecies[s].SpecT_eV_LineEdit->text().narrow());
+							std::cout << "Success: SpecT_eV_LineEdit read as " << _T_eV << std::endl;
+						} catch(boost::bad_lexical_cast &) {
+							std::cout << "Error: SpecT_eV_LineEdit could not be read" << std::endl;
+						}
+
 						double _n;
 						try {
-					   		_n = boost::lexical_cast<double>(Density_m3_LineEdit->text().narrow());
+					   		_n = boost::lexical_cast<double>(IonSpecies[s].SpecDensity_m3_LineEdit->text().narrow());
 							std::cout << "Success: Density_m3_LineEdit read as " << _n << std::endl;
 						} catch(boost::bad_lexical_cast &) {
 							std::cout << "Error: Density_m3_LineEdit could not be read" << std::endl;
 						}
 
+						int _maxHarmN;
+						try {
+					   		_maxHarmN = boost::lexical_cast<int>(IonSpecies[s].SpecHarmonicN_LineEdit->text().narrow());
+							std::cout << "Success: SpecHarmonicN_LineEdit read as " << _maxHarmN << std::endl;
+						} catch(boost::bad_lexical_cast &) {
+							std::cout << "Error: SpecHarmonicN_LineEdit could not be read" << std::endl;
+						}
+
+
 						AllSpecies.push_back(PlasmaSpecies(_z,_amu,_n,_bMag));
-						AllSpeciesHot.push_back(HotPlasmaSpecies(_z,_amu,_n,_bMag,Temp_eV));
+						AllSpeciesHot.push_back(HotPlasmaSpecies(_z,_amu,_n,_bMag,_T_eV,_maxHarmN));
 						_ionDensity += _z * _n;
 						std::cout << "_ionDensity: " << _ionDensity << std::endl;
 
@@ -672,8 +734,25 @@ void DispersionApp::UpdateCalculation()
 
 				}
 				//electrons
-				AllSpecies.push_back(PlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag));
-				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_me_mi,_ionDensity,_bMag,Temp_eV));
+				double _T_eV_e;
+				try {
+					_T_eV_e = boost::lexical_cast<double>(electron_T_eV_LineEdit->text().narrow());
+					std::cout << "Success: electron_T_eV_LineEdit read as " << _T_eV_e << std::endl;
+				} catch(boost::bad_lexical_cast &) {
+					std::cout << "Error: electron_T_eV_LineEdit could not be read" << std::endl;
+				}
+
+				double _amu_e;
+				try {
+					_amu_e = boost::lexical_cast<double>(electron_AMU_LineEdit->text().narrow());
+					std::cout << "Success: electron_AMU_LineEdit read as " << _amu_e << std::endl;
+				} catch(boost::bad_lexical_cast &) {
+					std::cout << "Error: electron_AMU_LineEdit could not be read" << std::endl;
+				}
+
+
+				AllSpecies.push_back(PlasmaSpecies(-1.0,_amu_e,_ionDensity,_bMag));
+				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_amu_e,_ionDensity,_bMag,_T_eV_e,0));
 
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
@@ -695,9 +774,9 @@ void DispersionApp::UpdateCalculation()
 				tmp.push_back(stix.R);
 
 				arma::colvec b_xyz = arma::zeros<arma::colvec>(3);
-				b_xyz(0) = 0;
-				b_xyz(1) = 0;
-				b_xyz(2) = _bMag; // remember the z direction is -phi
+				b_xyz(0) = bx(i);
+				b_xyz(1) = by(i);
+				b_xyz(2) = bz(i); // remember the z direction is -phi
 
 				std::cout<<"Initializing rotation matricies ..."<<std::endl;
 				RotationMatrix rot(b_xyz);
@@ -744,10 +823,10 @@ void DispersionApp::UpdateCalculation()
 
 					int _nX = 400;
 					int _nY = 500;
-					double kx_reMin = -20;
-					double kx_reMax = 20;
-					double kx_imMin = -900;
-					double kx_imMax = 900;
+					double kx_reMin = -500;
+					double kx_reMax = 500;
+					double kx_imMin = -200;
+					double kx_imMax = 200;
 
 					blitz::Array<blitz::TinyVector<double,3>, 2> arr(_nX,_nY);
 
@@ -763,20 +842,25 @@ void DispersionApp::UpdateCalculation()
 							arr(ii,jj)[0] = kx_re;
 							arr(ii,jj)[1] = kx_im;
 							arr(ii,jj)[2] = log10(abs(det));
-							//std::cout<<abs(det)<<std::endl;
+							std::cout<<arr(ii,jj)[2]<<std::endl;
 							//arr(ii,jj)[3] = kx_re*kx_im;//abs(det);
 						}
 					}
 
 					Gnuplot gp("gnuplot -persist");
+					//gp<<"set view equal xy"<<std::endl;
 					gp<<"set contour base"<<std::endl;
-					gp<<"set cntrparam levels auto 20"<<std::endl;
+					gp<<"unset clabel"<<std::endl;
+					//gp<<"set cntrparam levels auto 20"<<std::endl;
+					gp<<"set cntrparam linear"<<std::endl;
+					gp<<"set cntrparam levels incremental 0.5,0.5,200"<<std::endl;
+					gp<<"set key off"<<std::endl;
 					gp<<"unset surface; set view map"<<std::endl;
-					gp<<"splot '-' with lines"<<std::endl;
+					gp<<"splot '-' with lines lc '#000000'"<<std::endl;
 					gp.send(arr);
 
 				}
-
+				
 				//double w=0.2, e=0.9;
 				//int n=5, m=6;
 				//double root_re, root_im;
@@ -860,11 +944,11 @@ void DispersionApp::UpdateCalculation()
 
 				//for (unsigned i = 0; i < nX; ++i) {
 				  b_model->setData(i, 0, x[i]);
-				  b_model->setData(i, 1, b[i]);
+				  b_model->setData(i, 1, bMag(i));
 				//}
 
-				AllSpecies.clear();
-				AllSpeciesHot.clear();
+				//AllSpecies.clear();
+				//AllSpeciesHot.clear();
 			}
 
 }

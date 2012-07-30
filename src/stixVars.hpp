@@ -17,7 +17,7 @@ class PlasmaSpecies
 class HotPlasmaSpecies
 {
 		public:
-				HotPlasmaSpecies(double, double, double, float, float);
+				HotPlasmaSpecies(double, double, double, float, float,int);
 		private:
 		public:
 				double z, amu; // Atomic charge and mass
@@ -25,6 +25,7 @@ class HotPlasmaSpecies
 				double q, m, n, bMag; // Charge, mass, density, bMag
 				double T_eV, vTh; // Temperature, Thermal velocity
 				double e_swan; // q/|q| and wc is ALWAYS postive
+				int maxHarmN;
 };
 
 

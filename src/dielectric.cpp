@@ -115,7 +115,7 @@ void dielectric::populateSwansonKs(std::complex<double> _kx)
 			arma::cx_colvec expBesPrime(l+1);
 			arma::cx_colvec expBesOverGam(l+1);
 
-			for(int n=0;n<=l;n++)
+			for(int n=0;n<=species[s].maxHarmN;n++)
 			{
 					expBes(n) = std::complex<double>(expBes_r[n],expBes_i[n]);
 					expBesPrime(n) = std::complex<double>(expBesPrime_r[n],expBesPrime_i[n]);
@@ -137,15 +137,27 @@ void dielectric::populateSwansonKs(std::complex<double> _kx)
 			K4_s = std::complex<double>(0.0,0.0);
 			K5_s = std::complex<double>(0.0,0.0);
 
-			for(int n=-l;n<=l;n++) // harmonic number loop
+			for(int n=-species[s].maxHarmN;n<=species[s].maxHarmN;n++) // harmonic number loop
 			{
 
 					int nabs = abs(n);
 					std::complex<double> n_c(n,0.0);
 
-					std::complex<double> zeta_n = ( omega_c + n*species[s].wc ) /  (k_abp(2)*species[s].vTh);
-					std::complex<double> w = MATPACK::Faddeeva_2(zeta_n);
-					//std::complex<double> w = MATPACK::Faddeeva(zeta_n);
+					// Not entirely sure what to do about the imaginary
+					// part of kParallel here, since the Faddeeva function
+					// w(z) is only defined and useful for Im(zeta_n)>0. 
+					// Hmmmm. For now, we just use the real part of kParallel.
+
+					std::complex<double> zeta_n = ( omega_c + n*species[s].wc ) /  (std::real(k_abp(2))*species[s].vTh);
+					if(std::imag(zeta_n)<0)
+					{
+							std::cout<<"ERROR: Im(zeta_n) < 0"<<std::endl;
+							exit(1);
+					}
+					//std::complex<double> w = MATPACK::Faddeeva_2(zeta_n); // This function was giving nans.
+					std::cout<<"species: "<<s<<" harm no: "<<n<<" zeta_n: " << zeta_n << "  "<<(k_abp(2)*species[s].vTh)<<" kz: "<<k_abp(2)<<std::endl;
+
+					std::complex<double> w = MATPACK::Faddeeva(zeta_n);
 					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
 					std::complex<double> Zprime = -2.0*(1.0+zeta_n*Z);
 #ifdef _DEBUG

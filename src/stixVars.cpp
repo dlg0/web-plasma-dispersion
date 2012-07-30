@@ -17,7 +17,7 @@ PlasmaSpecies::PlasmaSpecies(double _z, double _amu, double _n, float _bMag)
 	e_swan = z/std::abs(z);
 }
 
-HotPlasmaSpecies::HotPlasmaSpecies(double _z, double _amu, double _n, float _bMag, float _TeV)
+HotPlasmaSpecies::HotPlasmaSpecies(double _z, double _amu, double _n, float _bMag, float _TeV, int _maxHarmN)
 {
 	z = _z;
 	amu = _amu;
@@ -30,6 +30,7 @@ HotPlasmaSpecies::HotPlasmaSpecies(double _z, double _amu, double _n, float _bMa
 	e_swan = z/std::abs(z);
 	T_eV = _TeV;
 	vTh = sqrt ( 2.0 * T_eV*_e / m);
+	maxHarmN = _maxHarmN;
 }
 
 StixVars::StixVars(double _omega, std::vector<PlasmaSpecies> _s)
