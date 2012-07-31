@@ -55,7 +55,7 @@ IonSpec::IonSpec(int SpecNoIn, Wt::WGroupBox *IonSpecies_Container )
 {
 	SpecNo = SpecNoIn;
 	std::stringstream TmpStr;
-	TmpStr << "Ion Species " << SpecNoIn << " (AMU, Z, T [eV], Density [m^-3])";
+	TmpStr << "Ion Species " << SpecNoIn << " (AMU, Z, T [eV], Density [m^-3], MaxHarmN)";
 	Wt::WString TmpStrWt(TmpStr.str());
 	SpecText = new Wt::WText(TmpStrWt,IonSpecies_Container);
 	SpecText->setHidden(1);
@@ -67,7 +67,7 @@ IonSpec::IonSpec(int SpecNoIn, Wt::WGroupBox *IonSpecies_Container )
 	SpecT_eV_LineEdit->setHidden(1);
 	SpecDensity_m3_LineEdit = new Wt::WLineEdit("1e19",IonSpecies_Container);
 	SpecDensity_m3_LineEdit->setHidden(1);
-	SpecHarmonicN_LineEdit = new Wt::WLineEdit("0",IonSpecies_Container);
+	SpecHarmonicN_LineEdit = new Wt::WLineEdit("3",IonSpecies_Container);
 	SpecHarmonicN_LineEdit->setHidden(1);
 	SpecBreak = new Wt::WBreak(IonSpecies_Container);
 SpecBreak->setHidden(1);
@@ -131,10 +131,21 @@ class DispersionApp : public Wt::WApplication
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
 					*kPar_LineEdit, *kz_LineEdit, *ky_LineEdit, *bxFrac_LineEdit, *byFrac_LineEdit;
 
-			Wt::WLineEdit *electron_AMU_LineEdit, *electron_Z_LineEdit, *electron_T_eV_LineEdit, *electron_Density_m3_LineEdit;
+			// electron parameters
+			Wt::WLineEdit *electron_AMU_LineEdit, *electron_Z_LineEdit, 
+					*electron_T_eV_LineEdit, *electron_Density_m3_LineEdit,
+					*electron_HarmonicN_LineEdit;
+
+
 			// Plot Y-Range controllers
 			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
 			Wt::WLineEdit *yRangeMin_LineEdit, *yRangeMax_LineEdit;
+
+			// k-space scan parameters
+			Wt::WText *kxReMin_Text, *kxReMax_Text, *kxImMin_Text, *kxImMax_Text, 
+					*kxReN_Text, *kxImN_Text;
+			Wt::WLineEdit *kxReMin_LineEdit, *kxReMax_LineEdit, *kxImMin_LineEdit, *kxImMax_LineEdit,
+					*kxReN_LineEdit, *kxImN_LineEdit;
 
 			std::vector <float> x;//,b;
 			arma::colvec bx,by,bz,bMag;
@@ -256,6 +267,31 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			new Wt::WBreak(East_Container);
 			ParameterType_ButtonGroup->addButton(ParameterType_Button,Numerical);
 
+			kxReN_Text = new Wt::WText("n Re(kx):",East_Container);
+			kxReN_LineEdit = new Wt::WLineEdit("200",East_Container);
+			new Wt::WBreak(East_Container);
+
+			kxImN_Text = new Wt::WText("n Im(kx):",East_Container);
+			kxImN_LineEdit = new Wt::WLineEdit("100",East_Container);
+			new Wt::WBreak(East_Container);
+
+			kxReMin_Text = new Wt::WText("Re(kx) min:",East_Container);
+			kxReMin_LineEdit = new Wt::WLineEdit("-40",East_Container);
+			new Wt::WBreak(East_Container);
+
+			kxReMax_Text = new Wt::WText("Re(kx) Max:",East_Container);
+			kxReMax_LineEdit = new Wt::WLineEdit("40",East_Container);
+			new Wt::WBreak(East_Container);
+
+			kxImMin_Text = new Wt::WText("Im(kx) min:",East_Container);
+			kxImMin_LineEdit = new Wt::WLineEdit("-20",East_Container);
+			new Wt::WBreak(East_Container);
+
+			kxImMax_Text = new Wt::WText("Im(kx) Max:",East_Container);
+			kxImMax_LineEdit = new Wt::WLineEdit("20",East_Container);
+			new Wt::WBreak(East_Container);
+
+
 			ParameterType_ButtonGroup->setCheckedButton(ParameterType_ButtonGroup->button(MagneticField));
 			ParameterType_ButtonGroup->checkedChanged().connect(
 							boost::bind(&DispersionApp::RevealParameterSettings,this));
@@ -342,11 +378,12 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 
 			IonSpecies_Container = new Wt::WGroupBox("Ion Species",root());
 
-			Wt::WText *electronText = new Wt::WText("Electron parameters (AMU, Z, T [eV],Density [m^-3])",IonSpecies_Container);
+			Wt::WText *electronText = new Wt::WText("Electron parameters (AMU, Z, T [eV], Density [m^-3], MaxHarmN)",IonSpecies_Container);
 			electron_AMU_LineEdit = new Wt::WLineEdit("0.000544617",IonSpecies_Container);
 			electron_Z_LineEdit = new Wt::WLineEdit("-1",IonSpecies_Container);
 			electron_T_eV_LineEdit = new Wt::WLineEdit("0.01",IonSpecies_Container);
 			electron_Density_m3_LineEdit = new Wt::WLineEdit("auto",IonSpecies_Container);
+			electron_HarmonicN_LineEdit = new Wt::WLineEdit("3",IonSpecies_Container);
 
 			new Wt::WBreak(IonSpecies_Container);
 
@@ -750,9 +787,16 @@ void DispersionApp::UpdateCalculation()
 					std::cout << "Error: electron_AMU_LineEdit could not be read" << std::endl;
 				}
 
+				int _maxHarmN;
+				try {
+					_maxHarmN = boost::lexical_cast<int>(electron_HarmonicN_LineEdit->text().narrow());
+					std::cout << "Success: electron_LineEdit read as " << _maxHarmN << std::endl;
+				} catch(boost::bad_lexical_cast &) {
+					std::cout << "Error: electron_LineEdit could not be read" << std::endl;
+				}
 
 				AllSpecies.push_back(PlasmaSpecies(-1.0,_amu_e,_ionDensity,_bMag));
-				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_amu_e,_ionDensity,_bMag,_T_eV_e,0));
+				AllSpeciesHot.push_back(HotPlasmaSpecies(-1.0,_amu_e,_ionDensity,_bMag,_T_eV_e,_maxHarmN));
 
 				std::cout << "AllSpecies[e] wp = " << AllSpecies[nSpecies].wp << std::endl;
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
@@ -806,13 +850,20 @@ void DispersionApp::UpdateCalculation()
 	
 				dielectric epsilonHot(AllSpeciesHot,_omega,3,ky,kz,rot);
 
-				//std::complex<double> kx_guess;
-				//kx_guess = std::complex<double>(9.77,0.0);
+				std::complex<double> kx_guess;
+				kx_guess = std::complex<double>(9.77,0.0);
 
-				//epsilonHot.populateSwansonKs(kx_guess);
-				//epsilonHot.rotate(rot.abp2xyz);
-				//epsilonHot.epsilon.print("Hot dielectric xyz: ");
+				epsilonHot.populateSwansonKs(kx_guess);
+				epsilonHot.epsilon.print("Hot dielectric abp: ");
+				epsilonHot.rotate(rot.abp2xyz);
+				epsilonHot.epsilon.print("Hot dielectric xyz: ");
 
+				std::vector<std::complex<double> > HotRoots = coldRoots(_omega,ky_,kz_,epsilonHot.epsilon);
+				for(int c=0;c<4;c++)
+				{
+						std::cout<<"hot roots: "<<HotRoots[c]<<std::endl;
+				}
+	
 				if(i==nX-1)
 				{
 		
@@ -820,13 +871,54 @@ void DispersionApp::UpdateCalculation()
 
 					// Just map the freaking space out and contour it. Then just look at a single 
 					// point at a time in the complex k space for zeros. 
+					
+					double kx_reMin;
+					try {
+						kx_reMin = boost::lexical_cast<double>(kxReMin_LineEdit->text().narrow());
+						std::cout << "Success: kxReMin_LineEdit read as " << kx_reMin << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxReMin_LineEdit could not be read" << std::endl;
+					}
 
-					int _nX = 400;
-					int _nY = 500;
-					double kx_reMin = -500;
-					double kx_reMax = 500;
-					double kx_imMin = -200;
-					double kx_imMax = 200;
+					double kx_reMax;
+					try {
+						kx_reMax = boost::lexical_cast<double>(kxReMax_LineEdit->text().narrow());
+						std::cout << "Success: kxReMax_LineEdit read as " << kx_reMax << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxReMax_LineEdit could not be read" << std::endl;
+					}
+
+					double kx_imMin;
+					try {
+						kx_imMin = boost::lexical_cast<double>(kxImMin_LineEdit->text().narrow());
+						std::cout << "Success: kxImMin_LineEdit read as " << kx_imMin << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxImMin_LineEdit could not be read" << std::endl;
+					}
+
+					double kx_imMax;
+					try {
+						kx_imMax = boost::lexical_cast<double>(kxImMax_LineEdit->text().narrow());
+						std::cout << "Success: kxImMax_LineEdit read as " << kx_imMax << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxImMax_LineEdit could not be read" << std::endl;
+					}
+
+					double _nX;
+					try {
+						_nX = boost::lexical_cast<int>(kxReN_LineEdit->text().narrow());
+						std::cout << "Success: kxReN_LineEdit read as " << _nX << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxReN_LineEdit could not be read" << std::endl;
+					}
+
+					double _nY;
+					try {
+						_nY = boost::lexical_cast<int>(kxImN_LineEdit->text().narrow());
+						std::cout << "Success: kxImN_LineEdit read as " << _nY << std::endl;
+					} catch(boost::bad_lexical_cast &) {
+						std::cout << "Error: kxImN_LineEdit could not be read" << std::endl;
+					}
 
 					blitz::Array<blitz::TinyVector<double,3>, 2> arr(_nX,_nY);
 
@@ -841,23 +933,66 @@ void DispersionApp::UpdateCalculation()
 							std::complex<double> det = epsilonHot.determinant(kxIn);
 							arr(ii,jj)[0] = kx_re;
 							arr(ii,jj)[1] = kx_im;
-							arr(ii,jj)[2] = log10(abs(det));
-							std::cout<<arr(ii,jj)[2]<<std::endl;
-							//arr(ii,jj)[3] = kx_re*kx_im;//abs(det);
+							arr(ii,jj)[2] = log10(std::abs(det));
+							//std::cout<<arr(ii,jj)[2]<<std::endl;
+							if(arr(ii,jj)[2]!=arr(ii,jj)[2])
+							{
+									std::cout<<"Error: Nans in determinant."<<std::endl;
+									exit(1);
+							}
 						}
 					}
 
 					Gnuplot gp("gnuplot -persist");
-					//gp<<"set view equal xy"<<std::endl;
+					//Gnuplot gp(fopen("external_text.gnu","w"));
 					gp<<"set contour base"<<std::endl;
 					gp<<"unset clabel"<<std::endl;
-					//gp<<"set cntrparam levels auto 20"<<std::endl;
+					gp<<"set xlabel 'Re(kx)'"<<std::endl;
+					gp<<"set ylabel 'Im(kx)'"<<std::endl;
 					gp<<"set cntrparam linear"<<std::endl;
 					gp<<"set cntrparam levels incremental 0.5,0.5,200"<<std::endl;
 					gp<<"set key off"<<std::endl;
 					gp<<"unset surface; set view map"<<std::endl;
 					gp<<"splot '-' with lines lc '#000000'"<<std::endl;
 					gp.send(arr);
+					//gp<<"splot"<<gp.file(arr,"external_text.dat")<<"with lines lc '#000000'"<<std::endl;
+					
+					blitz::Array<blitz::TinyVector<double,3>, 2> arrCold(_nX,_nY);
+
+					for(int ii=0;ii<_nX;ii++)
+					{
+						for(int jj=0;jj<_nY;jj++)
+						{
+							double kx_re = (kx_reMax-kx_reMin)/(_nX-1)*ii+kx_reMin;
+							double kx_im = (kx_imMax-kx_imMin)/(_nY-1)*jj+kx_imMin;
+
+							std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
+							int cold=1;
+							std::complex<double> det = epsilonCold.determinant(kxIn,ky_,kz_,rot,_omega,cold);
+							arrCold(ii,jj)[0] = kx_re;
+							arrCold(ii,jj)[1] = kx_im;
+							arrCold(ii,jj)[2] = log10(std::abs(det));
+							if(arrCold(ii,jj)[2]!=arrCold(ii,jj)[2])
+							{
+									std::cout<<"Error: Nans in determinant."<<std::endl;
+									exit(1);
+							}
+						}
+					}
+
+					Gnuplot gpCold("gnuplot -persist");
+					//Gnuplot gpCold(fopen("external_text.gnu","w"));
+					gpCold<<"set contour base"<<std::endl;
+					gpCold<<"unset clabel"<<std::endl;
+					gpCold<<"set xlabel 'Re(kx)'"<<std::endl;
+					gpCold<<"set ylabel 'Im(kx)'"<<std::endl;
+					gpCold<<"set cntrparam linear"<<std::endl;
+					gpCold<<"set cntrparam levels incremental 0.5,0.5,200"<<std::endl;
+					gpCold<<"set key off"<<std::endl;
+					gpCold<<"unset surface; set view map"<<std::endl;
+					gpCold<<"splot '-' with lines lc '#000000'"<<std::endl;
+					gpCold.send(arrCold);
+					//gpCold<<"splot"<<gpCold.file(arrCold,"external_text.dat")<<"with lines lc '#000000'"<<std::endl;
 
 				}
 				

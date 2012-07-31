@@ -155,7 +155,7 @@ void dielectric::populateSwansonKs(std::complex<double> _kx)
 							exit(1);
 					}
 					//std::complex<double> w = MATPACK::Faddeeva_2(zeta_n); // This function was giving nans.
-					std::cout<<"species: "<<s<<" harm no: "<<n<<" zeta_n: " << zeta_n << "  "<<(k_abp(2)*species[s].vTh)<<" kz: "<<k_abp(2)<<std::endl;
+					//std::cout<<"species: "<<s<<" harm no: "<<n<<" zeta_n: " << zeta_n << "  "<<(k_abp(2)*species[s].vTh)<<" kz: "<<k_abp(2)<<std::endl;
 
 					std::complex<double> w = MATPACK::Faddeeva(zeta_n);
 					std::complex<double> Z = sqrt(_pi)*I*w; // Z Function
@@ -253,22 +253,17 @@ void dielectric::populateSwansonKs(std::complex<double> _kx)
 		//stix.print("Hot conductivity stix:");
 }
 
-//void dielectric::determinant (double kxIn_re, double kxIn_im, double *kxOu_re, double *kxOu_im)
 std::complex<double> dielectric::determinant (std::complex<double> _kx)
 {
-	//std::complex<double> kx = std::complex<double>(kxIn_re,kxIn_im);
-	std::complex<double> kx = _kx;//std::complex<double>(kxIn_re,kxIn_im);
-
-	//k_xyz(0) = kx;
-	//k_abp = R.xyz2abp * k_xyz;
+	std::complex<double> kx = _kx;
 
 	populateSwansonKs(kx);
 
 	std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
 	std::complex<double> gamma = pow(k_abp(2),2)-Ka1;
 
-	// pg 177 of Swanson
-	
+	//// pg 177 of Swanson
+	//
 	//std::complex<double> determinant =
 	//		(gamma*(gamma-Ka0+pow(kPer,2))+pow(Ka2,2))*Ka3
 	//		+pow(kPer,2)*((gamma-Ka0+pow(kPer,2))*Ka1-pow(Ka2,2))
@@ -290,15 +285,61 @@ std::complex<double> dielectric::determinant (std::complex<double> _kx)
 	WaveEqn(2,1) = epsilon(2,1)*w2_c2+k_abp(2)*k_abp(1);
 	WaveEqn(2,2) = epsilon(2,2)*w2_c2-pow(kPer,2);
 
+	std::complex<double> detA = arma::det(WaveEqn);
+	if(std::real(detA)!=std::real(detA))
+	{
+			exit(1);
+	}
+
 	return(arma::det(WaveEqn));
-	//std::complex<double> determinantA2 = arma::det(WaveEqn2);
-
-	//double determinantA_ = arma::det(arma::real(WaveEqn));
-
-	//*kxOu_re = std::real(determinantA)/_c;	
-	//*kxOu_im = std::imag(determinantA)/_c;
 }
 
+std::complex<double> dielectric::determinant (std::complex<double> _kx,
+				std::complex<double> _ky, std::complex<double> _kz, 
+				RotationMatrix _R, double _omega, int _coldVersion)
+{
+
+	omega = _omega;
+	omega_c = std::complex<double>(omega,0.0);
+	
+	R = _R;
+
+	k_xyz = arma::zeros<arma::cx_colvec>(3);
+	k_abp = arma::zeros<arma::cx_colvec>(3);
+
+	k_xyz(0) = _kx;
+	k_xyz(1) = _ky;
+	k_xyz(2) = _kz;
+
+	k_abp = R.xyz2abp * k_xyz;
+
+	std::complex<double> kPer = sqrt(pow(k_abp(0),2)+pow(k_abp(1),2));
+
+	arma::cx_mat WaveEqn = arma::zeros<arma::cx_mat>(3,3);
+	std::complex<double> w2_c2 = pow(omega_c,2)/pow(_c,2);
+
+	WaveEqn(0,0) = epsilon(0,0)*w2_c2-pow(k_abp(2),2)-pow(k_abp(1),2);
+	WaveEqn(0,1) = epsilon(0,1)*w2_c2+k_abp(0)*k_abp(1);
+	WaveEqn(0,2) = epsilon(0,2)*w2_c2+k_abp(0)*k_abp(2);
+
+	WaveEqn(1,0) = epsilon(1,0)*w2_c2+k_abp(1)*k_abp(0);
+	WaveEqn(1,1) = epsilon(1,1)*w2_c2-pow(k_abp(2),2)-pow(k_abp(0),2);
+	WaveEqn(1,2) = epsilon(1,2)*w2_c2+k_abp(1)*k_abp(2);
+
+	WaveEqn(2,0) = epsilon(2,0)*w2_c2+k_abp(2)*k_abp(0);
+	WaveEqn(2,1) = epsilon(2,1)*w2_c2+k_abp(2)*k_abp(1);
+	WaveEqn(2,2) = epsilon(2,2)*w2_c2-pow(kPer,2);
+
+
+	std::complex<double> detA = arma::det(WaveEqn);
+	if(std::real(detA)!=std::real(detA))
+	{
+			exit(1);
+	}
+
+	std::cout<<detA<<std::endl;
+	return(arma::det(WaveEqn));
+}
 void dielectric::rotate ( arma::mat _rot )
 {
 		epsilon = _rot * epsilon * arma::inv(_rot);
