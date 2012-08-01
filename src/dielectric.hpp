@@ -9,7 +9,7 @@ class dielectric
 {
 		public:
 				dielectric(StixVars _s);
-				dielectric(std::vector<HotPlasmaSpecies> species, double _omega, int _l, 
+				dielectric(std::vector<HotPlasmaSpecies> species, std::complex<double> _omega_c, int _l, 
 								std::complex<double> _ky, std::complex<double> _kz, RotationMatrix _R);
 
 		private:
@@ -34,7 +34,7 @@ class dielectric
 				//void determinant(double kxIn_re, double kxIn_im, double *kxOu_re, double *kxOu_im);
 				std::complex<double> determinant(std::complex<double> _kx);
 				std::complex<double> determinant(std::complex<double> _kx, std::complex<double> _ky, std::complex<double> _kz, RotationMatrix _R, double _omega, int _coldVersion);
-				void populateSwansonKs(std::complex<double> _kx);
+				int populateSwansonKs(std::complex<double> _kx);
 				//void coldRoots(double, double, double);
 };
 

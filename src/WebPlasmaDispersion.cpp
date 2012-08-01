@@ -105,9 +105,9 @@ class DispersionApp : public Wt::WApplication
 			Wt::WPushButton *Update_PushButton;
 			Wt::WLineEdit *nameEdit_;
 			Wt::WText *greeting_;
-			Wt::WLineEdit *Density_m3_LineEdit, *BField_LineEdit, *Freq_Hz_LineEdit;
-			Wt::WDoubleValidator *DensityValidator, *BFieldValidator, *FreqValidator;
-			Wt::WText *DensityValidText, *BFieldValidText, *FreqValidText;
+			Wt::WLineEdit *BField_LineEdit, *Freq_Hz_LineEdit;
+			Wt::WDoubleValidator *BFieldValidator, *FreqValidator;
+			Wt::WText *BFieldValidText, *FreqValidText;
 
 			Wt::WContainerWidget *w;
 			Wt::WBorderLayout *layout;
@@ -125,17 +125,20 @@ class DispersionApp : public Wt::WApplication
 			Wt::WLineEdit *nX_LineEdit;
 
 			// Magnetic field scan
-			float r0, b0, rMin, rMax, kPar, ky, kz, yRangeMin, yRangeMax, bxFrac, byFrac;
+			float r0, b0, rMin, rMax, kPar, kyRe,kyIm,kzRe,kzIm, yRangeMin, yRangeMax, bxFrac, byFrac;
+			std::complex<double> ky, kz;
 			Wt::WText *r0_Text, *b0_Text, *rMin_Text, *rMax_Text, *kPar_Text,
 					*ky_Text, *kz_Text, *bxFrac_Text, *byFrac_Text;
 			Wt::WLineEdit *r0_LineEdit, *b0_LineEdit, *rMin_LineEdit, *rMax_LineEdit, 
-					*kPar_LineEdit, *kz_LineEdit, *ky_LineEdit, *bxFrac_LineEdit, *byFrac_LineEdit;
+					*kPar_LineEdit, *kzRe_LineEdit, *kyRe_LineEdit, *bxFrac_LineEdit, *byFrac_LineEdit,
+					*kzIm_LineEdit, *kyIm_LineEdit;
 
 			// electron parameters
 			Wt::WLineEdit *electron_AMU_LineEdit, *electron_Z_LineEdit, 
 					*electron_T_eV_LineEdit, *electron_Density_m3_LineEdit,
 					*electron_HarmonicN_LineEdit;
 
+			Wt::WLineEdit *nuOmg_LineEdit;
 
 			// Plot Y-Range controllers
 			Wt::WText *yRangeMin_Text, *yRangeMax_Text;
@@ -191,7 +194,7 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 
 			West_Container = new Wt::WGroupBox("West");
 			West_Container->setId("West");
-			West_Container->resize(250,400);
+			West_Container->resize(300,400);
 			layout->addWidget(West_Container,Wt::WBorderLayout::West);
 
 			East_Container = new Wt::WGroupBox("East");
@@ -299,17 +302,6 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			PointParameterType_Container = new Wt::WGroupBox("Point Parameter Settings",root());
 
 			new Wt::WBreak(West_Container);
-			Wt::WText *DensityText = new Wt::WText(West_Container);
-			DensityText->setText("Density [1/m^3]");
-			DensityValidator = new Wt::WDoubleValidator(1e1,1e25,West_Container);
-			DensityValidator->setMandatory(1);
-			Density_m3_LineEdit = new Wt::WLineEdit("2e19",West_Container);
-			Density_m3_LineEdit->setValidator(DensityValidator);
-			DensityValidText = new Wt::WText(West_Container);
-			Density_m3_LineEdit->changed().connect(
-					boost::bind(&DispersionApp::editedLineEdit,this,Density_m3_LineEdit,DensityValidText));
-
-			new Wt::WBreak(West_Container);
 
 			Wt::WText *BFieldText = new Wt::WText(PointParameterType_Container);
 			BFieldText->setText("BField [T]");
@@ -332,6 +324,9 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			Freq_Hz_LineEdit->changed().connect(
 					boost::bind(&DispersionApp::editedLineEdit,this,Freq_Hz_LineEdit,FreqValidText));
 			new Wt::WBreak(West_Container);
+			Wt::WText *nuOmgText = new Wt::WText("nu/Omega",West_Container);
+			nuOmg_LineEdit = new Wt::WLineEdit("0.02",West_Container);
+			new Wt::WBreak(West_Container);
 
 			PointParameterType_Container->setHidden(1);
 
@@ -342,12 +337,14 @@ DispersionApp::DispersionApp(const Wt::WEnvironment& env) : Wt::WApplication(env
 			//kPar_LineEdit = new Wt::WLineEdit("0.1",West_Container);
 			//new Wt::WBreak(West_Container);
 
-			ky_Text = new Wt::WText("ky",West_Container);
-			ky_LineEdit = new Wt::WLineEdit("0",West_Container);
+			ky_Text = new Wt::WText("ky[Re,Im]",West_Container);
+			kyRe_LineEdit = new Wt::WLineEdit("0",West_Container);
+			kyIm_LineEdit = new Wt::WLineEdit("0",West_Container);
 			new Wt::WBreak(West_Container);
 
-			kz_Text = new Wt::WText("kz",West_Container);
-			kz_LineEdit = new Wt::WLineEdit("10",West_Container);
+			kz_Text = new Wt::WText("kz[Re,Im]",West_Container);
+			kzRe_LineEdit = new Wt::WLineEdit("10",West_Container);
+			kzIm_LineEdit = new Wt::WLineEdit("0",West_Container);
 			new Wt::WBreak(West_Container);
 
 			r0_Text = new Wt::WText("r0",West_Container);
@@ -617,37 +614,37 @@ std::vector<std::complex<double> > coldRoots(
 		std::complex<double> k4 = pow(w,2)/pow(_c,2) * _epsilon(0,0);
 
 		std::complex<double> k3 = pow(w,2)/pow(_c,2) 
-				* ( (-kz) * ( _epsilon(0,1) + _epsilon(1,0) ) 
-						+ ky * ( _epsilon(0,2) + _epsilon(2,0) ) );
+				* ( ky * ( _epsilon(0,1) + _epsilon(1,0) ) 
+						+ kz * ( _epsilon(0,2) + _epsilon(2,0) ) );
 
-		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow((-kz),2) * ( _epsilon(0,0) + _epsilon(1,1) ) 
-						+ pow(_c,2) * ky * (-kz) * ( _epsilon(1,2) + _epsilon(2,1) ) 
-						+ pow(_c,2) * pow(ky,2) * ( _epsilon(0,0) + _epsilon(2,2) ) 
+		std::complex<double> k2 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(ky,2) * ( _epsilon(0,0) + _epsilon(1,1) ) 
+						+ pow(_c,2) * ky * kz * ( _epsilon(1,2) + _epsilon(2,1) ) 
+						+ pow(_c,2) * pow(kz,2) * ( _epsilon(0,0) + _epsilon(2,2) ) 
 						+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,0) 
 										+ _epsilon(0,2) * _epsilon(2,0)
 										- _epsilon(0,0) * ( _epsilon(1,1) + _epsilon(2,2) ) ) );
 
-		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(ky,2) * (-kz) * ( _epsilon(0,1) + _epsilon(1,0) )
-						+ pow(_c,2) * pow(ky,3) * ( _epsilon(0,2) + _epsilon(2,0) )
-						+ ky * ( pow(_c,2) * pow((-kz),2) * ( _epsilon(0,2) + _epsilon(2,0) )
+		std::complex<double> k1 = pow(w,2)/pow(_c,4) * ( pow(_c,2) * pow(ky,3)*( _epsilon(0,1) + _epsilon(1,0) )
+						+ pow(_c,2) * pow(ky,2)*kz* ( _epsilon(0,2) + _epsilon(2,0) )
+						+ kz * ( pow(_c,2) * pow(kz,2) * ( _epsilon(0,2) + _epsilon(2,0) )
 							+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,2) 
 										- _epsilon(1,1) * ( _epsilon(0,2) + _epsilon(2,0) )
 										+ _epsilon(1,0) * _epsilon(2,1) ) ) 
-						+ (-kz) * ( pow(w,2) * ( _epsilon(1,2) * _epsilon(2,0)
+						+ ky * ( pow(w,2) * ( _epsilon(1,2) * _epsilon(2,0)
 												+ _epsilon(0,2) * _epsilon(2,1) )
 									+ ( _epsilon(0,1) + _epsilon(1,0) ) 
-										* ( pow(_c,2) * pow((-kz),2) - pow(w,2) * _epsilon(2,2) ) ) );
+										* ( pow(_c,2) * pow(kz,2) - pow(w,2) * _epsilon(2,2) ) ) );
 		
-		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow((-kz),4) * _epsilon(1,1) 
-							+ pow(_c,4) * ky * pow((-kz),3) * ( _epsilon(1,2) + _epsilon(2,1) ) 
-							+ pow(_c,2) * ky * (-kz) 
-                                * ( pow(_c,2) * pow(ky,2) * ( _epsilon(1,2) + _epsilon(2,1) ) 
+		std::complex<double> k0 = pow(w,2)/pow(_c,6) * ( pow(_c,4) * pow(ky,4) * _epsilon(1,1) 
+							+ pow(_c,4) * kz * pow(ky,3) * ( _epsilon(1,2) + _epsilon(2,1) ) 
+							+ pow(_c,2) * ky * kz 
+                                * ( pow(_c,2) * pow(kz,2) * ( _epsilon(1,2) + _epsilon(2,1) ) 
 									+ pow(w,2) * ( _epsilon(0,2) * _epsilon(1,0) 
 													+ _epsilon(0,1) * _epsilon(2,0) 
 													- _epsilon(0,0) * 
 														( _epsilon(1,2) + _epsilon(2,1) ) ) ) 
-							+ pow(_c,4) * pow(ky,4) * _epsilon(2,2) 
-							+ pow(_c,2) * pow(w,2) * pow(ky,2) 
+							+ pow(_c,4) * pow(kz,4) * _epsilon(2,2) 
+							+ pow(_c,2) * pow(w,2) * pow(kz,2) 
 								* ( _epsilon(0,2) * _epsilon(2,0) 
 									+ _epsilon(1,2) * _epsilon(2,1) 
 									- ( _epsilon(0,0) + _epsilon(1,1) ) * _epsilon(2,2) ) 
@@ -657,7 +654,7 @@ std::vector<std::complex<double> > coldRoots(
 													- _epsilon(1,0) * _epsilon(2,2) ) 
 								+ _epsilon(0,0) * ( -_epsilon(1,2) * _epsilon(2,1) 
 													+ _epsilon(1,1) * _epsilon(2,2) ) ) 
-							+ pow(_c,2) * pow((-kz),2) * ( pow(_c,2) * pow(ky,2) * 
+							+ pow(_c,2) * pow(ky,2) * ( pow(_c,2) * pow(kz,2) * 
 								( _epsilon(1,1) + _epsilon(2,2) ) 
 								+ pow(w,2) * ( _epsilon(0,1) * _epsilon(1,0) 
 											+ _epsilon(1,2) * _epsilon(2,1) 
@@ -706,9 +703,6 @@ void DispersionApp::UpdateCalculation()
 
 			if(nRows<nX) b_model->insertRows(nRows-1,nX-nRows);
 			if(nRows>nX) b_model->removeRows(0,nRows-nX);
-
-
-			std::vector<double> tmp;
 
 			for(int i=0;i<nX;i++)
 			{
@@ -802,20 +796,26 @@ void DispersionApp::UpdateCalculation()
 				std::cout << "AllSpecies[e] wc = " << AllSpecies[nSpecies].wc << std::endl;
 
 				//kPar = boost::lexical_cast<double>(kPar_LineEdit->text().narrow());
-				ky = boost::lexical_cast<double>(ky_LineEdit->text().narrow());
-				kz = boost::lexical_cast<double>(kz_LineEdit->text().narrow());
+				kyRe = boost::lexical_cast<double>(kyRe_LineEdit->text().narrow());
+				kzRe = boost::lexical_cast<double>(kzRe_LineEdit->text().narrow());
+				kyIm = boost::lexical_cast<double>(kyIm_LineEdit->text().narrow());
+				kzIm = boost::lexical_cast<double>(kzIm_LineEdit->text().narrow());
+
+				ky = std::complex<double>(kyRe,kyIm);
+				kz = std::complex<double>(kzRe,kzIm);
 
 				double _freq = boost::lexical_cast<double>(Freq_Hz_LineEdit->text().narrow());
+				double _nuOmg = boost::lexical_cast<double>(nuOmg_LineEdit->text().narrow());
+
 				double _omega = 2.0 * _pi * _freq;
-				StixVars stix(_omega, AllSpecies);
+				std::complex<double> _omega_c(_omega,_omega*_nuOmg);
+				StixVars stix(_omega_c, AllSpecies);
 
 				std::cout << "Stix.R = " << stix.R << std::endl;
 				std::cout << "Stix.L = " << stix.L << std::endl;
 				std::cout << "Stix.D = " << stix.D << std::endl;
 				std::cout << "Stix.S = " << stix.S << std::endl;
 				std::cout << "Stix.P = " << stix.P << std::endl;
-
-				tmp.push_back(stix.R);
 
 				arma::colvec b_xyz = arma::zeros<arma::colvec>(3);
 				b_xyz(0) = bx(i);
@@ -839,16 +839,13 @@ void DispersionApp::UpdateCalculation()
 				epsilonCold.rotate(rot.abp2xyz);
 				epsilonCold.epsilon.print("Cold dielectric xyz: ");
 
-				std::complex<double> ky_(ky,0.0);
-				std::complex<double> kz_(kz,0.0);
-
-				std::vector<std::complex<double> > ColdRoots = coldRoots(_omega,ky_,kz_,epsilonCold.epsilon);
+				std::vector<std::complex<double> > ColdRoots = coldRoots(_omega,ky,kz,epsilonCold.epsilon);
 				for(int c=0;c<4;c++)
 				{
 						std::cout<<"cold roots: "<<ColdRoots[c]<<std::endl;
 				}
 	
-				dielectric epsilonHot(AllSpeciesHot,_omega,3,ky,kz,rot);
+				dielectric epsilonHot(AllSpeciesHot,_omega_c,3,ky,kz,rot);
 
 				std::complex<double> kx_guess;
 				kx_guess = std::complex<double>(9.77,0.0);
@@ -858,7 +855,7 @@ void DispersionApp::UpdateCalculation()
 				epsilonHot.rotate(rot.abp2xyz);
 				epsilonHot.epsilon.print("Hot dielectric xyz: ");
 
-				std::vector<std::complex<double> > HotRoots = coldRoots(_omega,ky_,kz_,epsilonHot.epsilon);
+				std::vector<std::complex<double> > HotRoots = coldRoots(_omega,ky,kz,epsilonHot.epsilon);
 				for(int c=0;c<4;c++)
 				{
 						std::cout<<"hot roots: "<<HotRoots[c]<<std::endl;
@@ -930,7 +927,9 @@ void DispersionApp::UpdateCalculation()
 							double kx_im = (kx_imMax-kx_imMin)/(_nY-1)*jj+kx_imMin;
 
 							std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
+							//std::cout<<"kxIn: "<<kxIn<<std::endl;
 							std::complex<double> det = epsilonHot.determinant(kxIn);
+
 							arr(ii,jj)[0] = kx_re;
 							arr(ii,jj)[1] = kx_im;
 							arr(ii,jj)[2] = log10(std::abs(det));
@@ -968,7 +967,7 @@ void DispersionApp::UpdateCalculation()
 
 							std::complex<double> kxIn = std::complex<double>(kx_re,kx_im);	
 							int cold=1;
-							std::complex<double> det = epsilonCold.determinant(kxIn,ky_,kz_,rot,_omega,cold);
+							std::complex<double> det = epsilonCold.determinant(kxIn,ky,kz,rot,_omega,cold);
 							arrCold(ii,jj)[0] = kx_re;
 							arrCold(ii,jj)[1] = kx_im;
 							arrCold(ii,jj)[2] = log10(std::abs(det));
@@ -996,71 +995,6 @@ void DispersionApp::UpdateCalculation()
 
 				}
 				
-				//double w=0.2, e=0.9;
-				//int n=5, m=6;
-				//double root_re, root_im;
-
-				//std::cout<<"Calling Zcircle ..."<<std::endl;
-				//Zcircle(w,e,std::real(kx_guess),std::imag(kx_guess),n,m,root_re,root_im,epsilonHot);				
-
-				//// starting from each cold root
-				//for(int t=0;t<4;t++)
-				//{
-				//	arma::cx_colvec k_xyz(3);
-				//	std::complex<double> krGuess = ColdRoots[t];
-
-				//	std::cout<<std::endl<<std::endl;
-				//	std::cout<<"original cold krGuess: "<<krGuess<<std::endl;
-				//	// iterate to the hot root
-				//	for(int it=0;it<40;it++)
-				//	{
-				//		k_xyz(0) = krGuess;
-				//		k_xyz(1) = ky_;
-				//		k_xyz(2) = kz_;
-
-				//		//arma::cx_colvec k_abp = rot.xyz2abp * k_xyz;
-				//		//rot.xyz2abp.print("xyz2abp: ");
-				//		//k_xyz.print("k_xyz: ");
-				//		//k_abp.print("k_abp: ");
-
-				//		dielectric epsilonHot(AllSpeciesHot,_omega,3,ky,kz,rot);
-				//		//epsilonHot.epsilon.print("Hot dielectric abp: ");
-
-				//		epsilonHot.rotate(rot.abp2xyz);
-				//		//epsilonHot.epsilon.print("Hot dielectric xyz: ");
-				//		//epsilonCold.epsilon.print("Cold dielectric xyz: ");
-
-				//		std::vector<std::complex<double> > HotRootsTmp = coldRoots(_omega,ky_,kz_,epsilonHot.epsilon);
-				//		//std::cout<<"krIter: "<<HotRootsTmp[0]<<"   "<<ColdRoots[0]<<std::endl;
-				//		//std::cout<<"krIter: "<<HotRootsTmp[1]<<"   "<<ColdRoots[1]<<std::endl;
-				//		//std::cout<<"krIter: "<<HotRootsTmp[2]<<"   "<<ColdRoots[2]<<std::endl;
-				//		//std::cout<<"krIter: "<<HotRootsTmp[3]<<"   "<<ColdRoots[3]<<std::endl;
-
-				//		// find the same solution
-				//		std::vector<double> diffVec(4,0);
-				//		diffVec[0] = std::abs(std::imag(HotRootsTmp[0])-std::imag(krGuess));
-				//		diffVec[1] = std::abs(std::imag(HotRootsTmp[1])-std::imag(krGuess));
-				//		diffVec[2] = std::abs(std::imag(HotRootsTmp[2])-std::imag(krGuess));
-				//		diffVec[3] = std::abs(std::imag(HotRootsTmp[3])-std::imag(krGuess));
-
-				//		int idx = std::min_element(diffVec.begin(),diffVec.end())-diffVec.begin();
-
-				//		arma::cx_colvec hotRoots = arma::zeros<arma::cx_colvec>(4);
-				//		hotRoots(0) = HotRootsTmp[0];
-				//		hotRoots(1) = HotRootsTmp[1];
-				//		hotRoots(2) = HotRootsTmp[2];
-				//		hotRoots(3) = HotRootsTmp[3];
-				//		arma::colvec diff = arma::abs(arma::imag(hotRoots)-std::imag(krGuess));
-				//		//hotRoots.print("hotRoots: ");
-				//		//diff.print("diff: ");
-				//		//std::cout<<"Min diff idx: "<<idx<<std::endl;
-				//		krGuess = HotRootsTmp[idx];
-				//		std::cout<<"New krGuess: "<<krGuess<<std::endl;
-
-				//	}
-				//}
-
-
 				// add new points to plot
 				//for (unsigned i = 0; i < nX; ++i) {
 				a_model->setData(i, 0, x[i]);

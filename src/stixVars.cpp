@@ -33,19 +33,19 @@ HotPlasmaSpecies::HotPlasmaSpecies(double _z, double _amu, double _n, float _bMa
 	maxHarmN = _maxHarmN;
 }
 
-StixVars::StixVars(double _omega, std::vector<PlasmaSpecies> _s)
+StixVars::StixVars(std::complex<double> _omega_c, std::vector<PlasmaSpecies> _s)
 {
-	double _R = 0.0;
-	double _L = 0.0;
-	double _P = 0.0;
+	std::complex<double> _R = 0.0;
+	std::complex<double> _L = 0.0;
+	std::complex<double> _P = 0.0;
 
 	// These are Swanson variables. It DOES matter!
 
 	for(int s=0;s<_s.size();s++)
 	{
-		_R += pow(_s[s].wp,2) / ( _omega * ( _omega + _s[s].e_swan*_s[s].wc ) );
-		_L += pow(_s[s].wp,2) / ( _omega * ( _omega - _s[s].e_swan*_s[s].wc ) );
-		_P += pow(_s[s].wp,2) / pow(_omega,2);
+		_R += pow(_s[s].wp,2) / ( _omega_c * ( _omega_c + _s[s].e_swan*_s[s].wc ) );
+		_L += pow(_s[s].wp,2) / ( _omega_c * ( _omega_c - _s[s].e_swan*_s[s].wc ) );
+		_P += pow(_s[s].wp,2) / pow(_omega_c,2);
 	}
 
 	R = 1.0 - _R;

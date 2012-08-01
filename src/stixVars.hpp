@@ -1,6 +1,7 @@
 #ifndef STIXVARS_HPP_
 #define STIXVARS_HPP_
 #include <vector>
+#include <complex>
 
 class PlasmaSpecies
 {
@@ -32,10 +33,10 @@ class HotPlasmaSpecies
 class StixVars
 {
 		public:
-				StixVars(double _omega, std::vector<PlasmaSpecies> _s);
+				StixVars(std::complex<double> _omega_c, std::vector<PlasmaSpecies> _s);
 		private:
 		public:
-				double R, L, S, D, P;
+				std::complex<double> R, L, S, D, P;
 };
 
 
